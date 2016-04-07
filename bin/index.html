@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta name="google" value="notranslate">
+
+<script src="../src/utils/jquery.js"></script>
+<script src="../src/utils/jquery-ui.js"></script>
+<script src="../src/utils/pathfinding-browser.min.js"></script>
+
+<script src="../src/header.js"></script>
+<script src="../src/game.js"></script>
+<script src="../src/display.js"></script>
+<script src="../src/grid.js"></script>
+<script src="../src/creature.js"></script>
+<script src="../src/character.js"></script>
+<script src="../src/monster.js"></script>
+<script src="../src/level.js"></script>
+
+</head>
+
+<script>
+
+$(document).ready(function(){
+
+console.log("ready");
+
+var game = new Game();
+	
+game.start()
+	
+});
+
+
+</script>
+
+
+<body>
+	<div id = "stage" style="position:absolute; left: 0px; top: 0px; margin:0px; padding 0px; width:800px; height:600px;"></div>
+</body>
+
+<style>
+body
+{
+	font: 12px "Verdana";
+	text-align:center;
+}
+</style>
+
+</html>
+
+
