@@ -4,8 +4,8 @@ function Character()
 {
 	Creature.call(this);
 
+	// default stats for the player
 	this.look = "@";
-
 	this.name = "Ray";
 
 	this.curHP = 30;

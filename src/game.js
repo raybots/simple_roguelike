@@ -2,8 +2,9 @@ Game.singleton = null;
 
 function Game()
 {
-	this.width = 800;
-	this.height = 500;
+	// params for creating the display
+	this.width = $(window).width();
+	this.height = $(window).height();
 	this.displayX = 20;
 	this.displayY = 20;
 
@@ -13,32 +14,23 @@ function Game()
 	this.renderWidth = 40;
 	this.renderHeight = 40;	
 
-	//test
-
-	console.log("creating game");
-
-	this.element = jQuery("<div id = 'gameBackground'></div>");
+	this.element = $("<div id = 'gameBackground'>Use arrow keys to move!</div>");
 
 	this.element.css({
 		"position":"absolute",
 		"width":this.width,
 		"height":this.height,
-		"background": "-webkit-gradient(linear, center top, center bottom, from(#f7f7f7), to(#dbdbdb))",
-		//"border":"1px solid #d2d2d2",
-		//"border-top-color":"#e9e9e9",
-		//"-webkit-border-radius": "5px",
-		//"-moz-border-radius": "5px",
-		//"border-radius": "5px",
-		//"-webkit-box-shadow": "#AAA 1px 1px 0px 0px"			
+		"background": "-webkit-gradient(linear, center top, center bottom, from(#f7f7f7), to(#dbdbdb))",		
 	});
 
-	jQuery("#stage").append(this.element);
+	$("#stage").append(this.element);
 
 	var output = "";
 
 	Game.singleton = this;
 }
 
+// the display is however many characters wide and tall
 Game.prototype.setDisplaySize = function()
 {
 	var output = "";
@@ -54,9 +46,10 @@ Game.prototype.setDisplaySize = function()
 		output+= "<br/>";
 	}
 
+	// need to create a clone first to figure out what the width with text will be
 	clone.css({ "display": "inline-block", "width": "", "height": "" })
 
-	jQuery("body").append(clone);
+	$("body").append(clone);
 
 	clone.html(output);
 
@@ -66,6 +59,7 @@ Game.prototype.setDisplaySize = function()
 	clone.remove();
 }
 
+// all the big main stuff happens here
 Game.prototype.start = function()
 {
 	this.player = new Character();
@@ -82,6 +76,7 @@ Game.prototype.start = function()
 	this.updateScreen();
 }
 
+// positioning and addign the display
 Game.prototype.createDisplay = function()
 {
 	this.display = new Display(this.renderWidth, this.renderHeight);
@@ -94,6 +89,7 @@ Game.prototype.createDisplay = function()
 	this.element.append(this.display.element);
 }
 
+// update the display with the current walls, players and monsters in the area
 Game.prototype.updateScreen = function()
 {
 	this.display.update(this.level.wallGrid, this.player, this.level.monsterArray);
@@ -102,9 +98,9 @@ Game.prototype.updateScreen = function()
 Game.prototype.addControls = function()
 {
 
-var moveCallback = jQuery.proxy(this.move, this);	
+var moveCallback = $.proxy(this.move, this);	
 
-jQuery(document).keydown(function(e) {
+$(document).keydown(function(e) {
     switch(e.which) {
         case 37: // left
         moveCallback("left");
@@ -129,6 +125,7 @@ jQuery(document).keydown(function(e) {
 
 }
 
+// moves the player along the x and y axis. The monsters move as the player moves.
 Game.prototype.move = function(direction)
 {
 	var x = this.player.x;

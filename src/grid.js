@@ -17,6 +17,7 @@ function Grid(width, height)
 	}
 }
 
+// clears all values in the grid
 Grid.prototype.clear = function()
 {
 	for (var y = 0; y < this.height; y++)
@@ -28,6 +29,7 @@ Grid.prototype.clear = function()
 	}
 }
 
+// gets a value at the specified coordinates
 Grid.prototype.getVal = function(x, y)
 {
 	if (this.contains(x, y))
@@ -36,6 +38,7 @@ Grid.prototype.getVal = function(x, y)
 		return null;
 }
 
+// sets a value at the specified coordinates
 Grid.prototype.setVal = function(x, y, val)
 {
 	if (this.contains(x, y))
@@ -44,6 +47,7 @@ Grid.prototype.setVal = function(x, y, val)
 		return false;
 }
 
+// checks whether the coordinates exist in the grid, a bounds check
 Grid.prototype.contains = function(x, y)
 {
 	if (x >= 0 && x < this.width && y >= 0 && y < this.height)

@@ -4,16 +4,15 @@ function Display(renderWidth, renderHeight)
 	this.element = jQuery("<div id = displayBackground></div>");
 
 	this.element.css({
-		"position":"absolute",
+		"margin":"auto",
 		"color":"#444444",
 		"width":100,
 		"height":100,
-		"font": "12px Courier New",
+		"font": "16px Courier New",
 		"white-space": "nowrap",
 		"line-height": 0.65,
 		"text-align":"left",
 		"background-color": "#f7f7f7",
-		//"background": "-webkit-gradient(linear, center top, center bottom, from(#f7f7f7), to(#dbdbdb))",
 		"border":"1px solid #d2d2d2",
 		"border-top-color":"#e9e9e9",
 		"cursor":"pointer",	
@@ -26,10 +25,10 @@ function Display(renderWidth, renderHeight)
 	this.renderMod = (this.renderWidth / 2) + 1;
 }
 
+// updates the display to show the walls, player and monsters in the area
 Display.prototype.update = function(wallGrid, player, monsterArray)
 {
 	var output = "";
-	//var renderGrid = new Grid(wallGrid.width, wallGrid.height);
 
 	var renderGrid = new Grid(this.renderWidth, this.renderHeight);
 
@@ -46,6 +45,7 @@ Display.prototype.update = function(wallGrid, player, monsterArray)
 			}
 			else if (wallGrid.getVal(renderX, renderY) == 1)
 			{
+				// placing a wall on the grid
 				renderGrid.setVal(x, y, "#");
 			}
 			else if (wallGrid.getVal(renderX, renderY) == null)
@@ -61,6 +61,7 @@ Display.prototype.update = function(wallGrid, player, monsterArray)
 
 	for (var i = 0; i < monsterArray.length; i++)
 	{
+		// placing a monster on the grid
 		renderGrid.setVal(startX + monsterArray[i].x, startY + monsterArray[i].y, monsterArray[i].look);
 	}
 

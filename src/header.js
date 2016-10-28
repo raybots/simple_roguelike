@@ -19,14 +19,17 @@ RayGame.subclass = function( subClass, baseClass )
    RayGame.definedClasses[subClass] = true;
 }
 
+// finds the highest value in an array
 Array.prototype.max = function(){
     return Math.max.apply( Math, this );
 };
 
+// returns the distance of a line
 function lineDistance(x0, y0, x1, y1){
     return Math.sqrt((x0 -= x1) * x0 + (y0 -= y1) * y0);
 };
 
+// returns an array of a line
 function getLine(x0, y0, x1, y1, yArrayOld)
 {
    var newWidth= yArrayOld[0].length;
@@ -47,8 +50,6 @@ function getLine(x0, y0, x1, y1, yArrayOld)
    {
        lineArray.push(yArrayOld[y0][x0]);
    }
-   
-    //setPixel(x0,y0);  // Do what you need to for this
 
     if ((x0==x1) && (y0==y1)) break;
     var e2 = 2*err;

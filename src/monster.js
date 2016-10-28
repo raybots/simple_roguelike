@@ -2,10 +2,9 @@ RayGame.subclass( Monster, Creature);
 
 function Monster(moveCallback)
 {
-	//Card.call( this, text, isInput, imgURL, imageOnTop, padding, notDraggable);
-
 	Creature.call(this);
 
+	// stats to indicate a default rat creature
 	this.look = "r"
 	this.range = 20;
 	this.seenPlayer = false;
@@ -13,6 +12,7 @@ function Monster(moveCallback)
 	this.moveCallback = moveCallback;
 }
 
+// draw a line from the monster to the character to see if the monster has line of sight
 Monster.prototype.hasLOS = function(playerX, playerY, wallGrid)
 {
 	var lineArray = getLine(this.x, this.y, playerX, playerY, wallGrid.matrix);
@@ -40,13 +40,14 @@ Monster.prototype.hasLOS = function(playerX, playerY, wallGrid)
 	return hasLOS;
 }
 
+// if the monster has line of sight to the player, it will use the A* search algorithm to chase the player
 Monster.prototype.process = function(playerX, playerY, wallGrid, creatureGrid)
 {
 	if (lineDistance(playerX, playerY, this.x, this.y) <= this.range || this.seenPlayer == true)
 	{
 		if (this.hasLOS(playerX, playerY, wallGrid) || this.seenPlayer == true)
 		{
-			// A Star
+			// A Star search algorithm used to find path
 			var finder = new PF.AStarFinder();
 
 			var grid = new PF.Grid(wallGrid.width, wallGrid.height, wallGrid.matrix);

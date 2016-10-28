@@ -12,6 +12,7 @@ function Level(width, height)
 	this.creatureGrid.clear();
 }
 
+// places a monster down at the specified coordinates
 Level.prototype.placeCreature = function(x, y, creature)
 {
 	var canMove = false;
@@ -37,6 +38,7 @@ Level.prototype.placeCreature = function(x, y, creature)
 	}
 }
 
+// goes through the monsters and makes them do stuff
 Level.prototype.processMonsters = function(playerX, playerY)
 {
 	for (var i = 0; i < this.monsterArray.length; i++)
@@ -46,6 +48,7 @@ Level.prototype.processMonsters = function(playerX, playerY)
 	}
 }
 
+// creates a cave level by randomly filling it with tiles, then adding or removing tiles that can make it look more cave like
 Level.prototype.genCave = function()
 {
 	for (var y = 5; y < this.wallGrid.height - 8; y++)
