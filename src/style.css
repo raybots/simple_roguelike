@@ -1,20 +1,12 @@
-body
-{
-	text-align:center;
-}
-
 #stage
 {
-    position:absolute;
     left: 0px;
     top: 0px;
     margin:0px;
     padding: 0px;
-    width:800px;
-    height:600px;
 }
 
-.gameBackground
+#gameBackground
 {
-    background-color: #f9f9f9;
+    text-align: center;
 }
