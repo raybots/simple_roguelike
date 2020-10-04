@@ -14,13 +14,12 @@ function Game()
 	this.renderWidth = 40;
 	this.renderHeight = 40;	
 
-	this.element = $("<div id = 'gameBackground'>Use arrow keys to move!</div>");
+	this.element = $("<div id = 'gameBackground'><h1>Use arrow keys to move<h1></div>");
 
 	this.element.css({
 		"position":"absolute",
 		"width":this.width,
-		"height":this.height,
-		"background": "-webkit-gradient(linear, center top, center bottom, from(#f7f7f7), to(#dbdbdb))",		
+		"height":this.height	
 	});
 
 	$("#stage").append(this.element);
