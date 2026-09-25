@@ -135,6 +135,26 @@ export class Level {
     return { ...NO_MOVE, moved: true, item };
   }
 
+  // Direct damage outside a normal bump attack. Removes monsters that die.
+  strikeCreature(attacker, target, amount) {
+    const { damage, killed } = attacker.strike(target, amount);
+    if (killed && !target.isPlayer) this.removeCreature(target);
+    return { damage, killed };
+  }
+
+  // Tiles about to be smashed by winding-up monsters.
+  dangerTiles() {
+    const tiles = new Set();
+    for (const m of this.monsters) {
+      if (m.alive && m.windup) for (const { x, y } of m.windup) tiles.add(y * this.width + x);
+    }
+    return tiles;
+  }
+
+  isChasm(x, y) {
+    return this.featureAt(x, y)?.type === "chasm";
+  }
+
   // Every living monster takes a turn. Returns what each one did.
   processMonsters(player, rng, ctx = {}) {
     const events = [];

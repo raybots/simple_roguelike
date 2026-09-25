@@ -32,6 +32,8 @@ export class Monster extends Creature {
     remembers = true,
     torch = 0,
     fearsLight = false,
+    stride = 1,
+    telegraph = false,
     state = "idle",
   } = {}) {
     super({ x, y, glyph, name, hp, damage });
@@ -43,6 +45,11 @@ export class Monster extends Creature {
     this.remembers = remembers;
     this.torch = torch;
     this.fearsLight = fearsLight;
+    this.stride = stride;
+    this.telegraph = telegraph;
+    this.strideCount = 0;
+    // Tiles this monster will smash on its next turn, or null.
+    this.windup = null;
     this.state = state;
     this.alertTurns = 0;
     this.energy = 0;
@@ -71,9 +78,9 @@ export class Monster extends Creature {
   }
 
   // Whether an unaware monster notices the player. Being lit makes you visible from afar.
-  notices(level, player, playerLit) {
+  notices(level, player, playerLit, darkRange = DARK_NOTICE_RANGE) {
     const d = distance(this.x, this.y, player.x, player.y);
-    const reach = playerLit ? this.range : DARK_NOTICE_RANGE;
+    const reach = playerLit ? this.range : darkRange;
     return d <= reach && this.hasLineOfSightTo(level, player);
   }
 
@@ -87,6 +94,8 @@ export class Monster extends Creature {
   takeTurn(level, player, rng, ctx = {}) {
     if (!this.alive) return null;
     const playerLit = ctx.playerLit ?? true;
+    const darkRange = ctx.darkNotice ?? DARK_NOTICE_RANGE;
+    const notices = () => this.notices(level, player, playerLit, darkRange);
 
     // Slow monsters build up energy and only act once they have a full point.
     this.energy += this.speed;
@@ -95,14 +104,14 @@ export class Monster extends Creature {
 
     if (this.state === "asleep") {
       const close = distance(this.x, this.y, player.x, player.y) <= WAKE_RANGE;
-      if (this.notices(level, player, playerLit) && (close || rng?.chance(0.1))) this.state = "alert";
+      if (notices() && (close || rng?.chance(0.1))) this.state = "alert";
       return null;
     }
 
     if (this.erratic && rng && rng.chance(this.erratic)) return this.wander(level, player, rng);
 
     if (this.state === "idle") {
-      if (this.notices(level, player, playerLit)) {
+      if (notices()) {
         this.state = "alert";
         this.alertTurns = 0;
       }
@@ -110,7 +119,7 @@ export class Monster extends Creature {
     }
 
     if (this.state === "alert") {
-      if (!this.notices(level, player, playerLit)) {
+      if (!notices()) {
         if (++this.alertTurns >= ALERT_PATIENCE) this.state = "idle";
         return null;
       }
@@ -118,11 +127,43 @@ export class Monster extends Creature {
     }
 
     // Hunting.
+    if (this.windup) return this.smash(level);
     if (!this.canSee(level, player) && !this.remembers) {
       this.state = "idle";
       return null;
     }
+    if (this.telegraph && Math.abs(player.x - this.x) + Math.abs(player.y - this.y) === 1) {
+      return this.windUp(level, player);
+    }
+    if (this.stride > 1 && this.strideCount++ % this.stride !== 0) return null;
     return this.stepToward(level, player);
+  }
+
+  // Marks the player's tile and the two tiles either side of it, across the line of attack.
+  // Stepping straight back is the only way out.
+  windUp(level, player) {
+    const dx = player.x - this.x;
+    const dy = player.y - this.y;
+    const side = [dy, dx];
+    this.windup = [
+      { x: player.x, y: player.y },
+      { x: player.x + side[0], y: player.y + side[1] },
+      { x: player.x - side[0], y: player.y - side[1] },
+    ].filter(({ x, y }) => !level.isWall(x, y));
+    return { windup: true };
+  }
+
+  // Brings the blow down on every marked tile. Anything standing there gets hurt,
+  // other monsters included.
+  smash(level) {
+    const hits = [];
+    for (const { x, y } of this.windup) {
+      const target = level.creatureAt(x, y);
+      if (!target || target === this || !target.alive) continue;
+      hits.push({ target, ...level.strikeCreature(this, target, this.damage * 2) });
+    }
+    this.windup = null;
+    return { smash: true, hits };
   }
 
   stepToward(level, target) {

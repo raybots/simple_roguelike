@@ -18,6 +18,9 @@ export const KEY_ACTIONS = {
   q: "quaff",
   t: "torch",
   Enter: "restart",
+  1: "choose1",
+  2: "choose2",
+  3: "choose3",
 };
 
 // Returns the action for a key event, or null. Keys held with Ctrl, Cmd or Alt are

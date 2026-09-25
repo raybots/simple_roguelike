@@ -61,5 +61,6 @@ test("monsters are built from the bestiary with depth bonus hp", () => {
   const shallow = levelFromStrings(["g"]).monsters[0];
   const deep = levelFromStrings(["g"], { depth: 7 }).monsters[0];
   assert.equal(shallow.name, "goblin");
-  assert.equal(deep.maxHp, shallow.maxHp + 2);
+  assert.equal(deep.maxHp, shallow.maxHp + 3);
+  assert.equal(deep.damage, shallow.damage + 1);
 });

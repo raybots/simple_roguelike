@@ -13,6 +13,13 @@ export class Player extends Creature {
     this.fuel = MAX_FUEL;
     this.maxFuel = MAX_FUEL;
     this.torchLit = true;
+    this.minTorchRadius = 0;
+    this.potionBonus = 0;
+    this.relics = [];
+  }
+
+  hasRelic(id) {
+    return this.relics.includes(id);
   }
 
   get torchBurning() {
@@ -22,7 +29,7 @@ export class Player extends Creature {
   // Sight radius from the torch: 8 when full, shrinking to 3 as fuel runs low. 0 when dark.
   get torchRadius() {
     if (!this.torchBurning) return 0;
-    return 3 + Math.ceil((5 * this.fuel) / this.maxFuel);
+    return Math.max(this.minTorchRadius, 3 + Math.ceil((5 * this.fuel) / this.maxFuel));
   }
 
   // Returns how much was actually healed.

@@ -25,6 +25,7 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | Go down stairs | `>` |
 | Drink a potion | `q` |
 | Douse or relight your torch | `t` |
+| Pick a relic | `1` `2` `3` |
 | Play again after dying | Enter |
 
 ## What's in the caves
@@ -39,12 +40,17 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | `r` | Rat | Weak, but remembers you once it has seen you. |
 | `b` | Bat | Flits about randomly and forgets you when you're out of sight. |
 | `g` | Goblin | Appears from depth 2. Hits for 2. Carries a torch, so you'll see its light first. |
-| `O` | Ogre | Appears from depth 4. Slow but hits for 4. |
+| `O` | Ogre | Appears from depth 4. Lumbers, then raises its club and smashes three tiles next turn. Step out of the red. |
+| `:` | Chasm | From depth 2. Jump in to drop a level at once, for 3 damage. |
 | `x` | Corpse | |
 
 Small marks over a monster show what it knows: `z` asleep, `?` has just noticed you, `!` hunting.
 
-Each level has more monsters than the last, and they gain extra HP every three levels.
+Each time you go deeper, by stairs or by chasm, you pick one of three relics. Relics bend the
+rules: kills that heal you, a torch that never shrinks below radius 5, sensing monsters through
+walls, fivefold sneak attacks, and more. Hover a relic in the HUD to read it.
+
+Each level has more monsters than the last, and they gain HP every two levels and damage every six.
 The numbers live in `src/bestiary.js` and `src/player.js` if you want to rebalance things.
 
 ## Running locally

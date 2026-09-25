@@ -2,6 +2,7 @@ import { BRAZIER_RADIUS, Level } from "./level.js";
 import { lightLevel } from "./light.js";
 import { generateLevel } from "./levelgen.js";
 import { BRAZIER_COST, OIL_FUEL, Player, POTION_HEAL } from "./player.js";
+import { applyRelic, draftRelics, RELICS } from "./relics.js";
 import { createRng } from "./rng.js";
 import { computeFov } from "./visibility.js";
 
@@ -18,6 +19,9 @@ export const SIGHT_RANGE = 16;
 // Without a torch you can still make out the tiles right next to you.
 export const DARK_SIGHT = 1;
 export const SNEAK_MULTIPLIER = 3;
+export const SHADOWSTEP_MULTIPLIER = 5;
+export const FALL_DAMAGE = 3;
+export const ECHO_RANGE = 6;
 const NOISE_RADIUS = 6;
 const MAX_MESSAGES = 100;
 
@@ -43,6 +47,7 @@ export class Game {
     this.messages = [];
     this.messageCount = 0;
     this.killedBy = null;
+    this.draft = null;
     this.enterLevel();
     this.log("You enter the caves. Find the stairs (>) to go deeper.");
   }
@@ -51,7 +56,16 @@ export class Game {
     const blueprint = generateLevel({ width: this.width, height: this.height, depth: this.depth, rng: this.rng });
     this.level = new Level(blueprint);
     this.level.placeCreature(this.player, blueprint.playerStart.x, blueprint.playerStart.y);
+    if (this.player.hasRelic("cartographer")) this.revealStairs();
     this.updateVisibility();
+  }
+
+  revealStairs() {
+    const { stairs } = this.level;
+    if (!stairs) return;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) this.level.explored.set(stairs.x + dx, stairs.y + dy, true);
+    }
   }
 
   log(text) {
@@ -97,6 +111,23 @@ export class Game {
       if (this.light.has(i)) this.visible.add(i);
     }
     level.markExplored(this.visible);
+
+    // Echolocation: monsters nearby are sensed even without sight.
+    this.sensed = new Set();
+    if (player.hasRelic("echolocation")) {
+      for (const m of level.monsters) {
+        if (m.alive && Math.hypot(m.x - player.x, m.y - player.y) <= ECHO_RANGE) this.sensed.add(m);
+      }
+    }
+    this.danger = level.dangerTiles();
+  }
+
+  isSensed(monster) {
+    return this.sensed.has(monster);
+  }
+
+  isDanger(x, y) {
+    return this.danger.has(this.index(x, y));
   }
 
   isVisible(x, y) {
@@ -118,6 +149,11 @@ export class Game {
       this.newGame();
       return true;
     }
+    if (this.state === "draft") {
+      const pick = { choose1: 0, choose2: 1, choose3: 2 }[action];
+      if (pick === undefined || pick >= this.draft.length) return false;
+      return this.takeRelic(this.draft[pick]);
+    }
 
     if (action in DIRECTIONS) return this.move(...DIRECTIONS[action]);
     if (action === "wait") return this.endTurn();
@@ -133,10 +169,12 @@ export class Game {
     // Bumping a wall is free.
     if (this.level.isWall(x, y)) return false;
     if (this.level.featureAt(x, y)?.type === "brazier") return this.useBrazier(x, y);
+    if (this.level.isChasm(x, y) && !this.level.creatureAt(x, y)) return this.fall();
 
     const target = this.level.creatureAt(x, y);
     const sneak = target && target.unaware;
-    const result = this.level.moveCreature(this.player, x, y, { multiplier: sneak ? SNEAK_MULTIPLIER : 1 });
+    const multiplier = sneak ? (this.player.hasRelic("shadowstep") ? SHADOWSTEP_MULTIPLIER : SNEAK_MULTIPLIER) : 1;
+    const result = this.level.moveCreature(this.player, x, y, { multiplier });
     if (result.target) this.reportAttack(result, sneak);
     if (result.item) this.pickUp(result.item);
     if (result.moved && this.level.isStairs(x, y)) this.log("There are stairs down here. Press > to descend.");
@@ -149,6 +187,7 @@ export class Game {
     if (sneak) this.log(killed ? `You strike the unaware ${name} dead!` : `You strike the unaware ${name}!`);
     else this.log(killed ? `You kill the ${name}.` : `You hit the ${name}.`);
     if (!killed) target.state = "hunting";
+    if (killed && this.player.hasRelic("vampiric") && this.player.heal(1) > 0) this.log("You drink its life. (+1)");
     this.makeNoise(target.x, target.y);
   }
 
@@ -182,6 +221,10 @@ export class Game {
     this.player.fuel -= BRAZIER_COST;
     this.level.lightBrazier(x, y);
     this.log("You light the brazier. Warm light floods the cave.");
+    if (this.player.hasRelic("lantern")) {
+      const healed = this.player.heal(5);
+      if (healed > 0) this.log(`The flame mends you. (+${healed})`);
+    }
     return this.endTurn();
   }
 
@@ -205,9 +248,42 @@ export class Game {
       this.log("There are no stairs here.");
       return true;
     }
+    this.goDeeper();
+    this.log(`You descend to depth ${this.depth}.`);
+    return true;
+  }
+
+  // Jumping into a chasm drops you a level, at a cost.
+  fall() {
+    const { player } = this;
+    const hurt = Math.min(FALL_DAMAGE, player.hp - 1);
+    player.hp -= hurt;
+    this.goDeeper();
+    this.log(`You leap into the chasm and land hard on depth ${this.depth}. (-${hurt})`);
+    return true;
+  }
+
+  goDeeper() {
     this.depth++;
     this.enterLevel();
-    this.log(`You descend to depth ${this.depth}.`);
+    this.startDraft();
+  }
+
+  startDraft() {
+    const options = draftRelics(this.rng, this.player.relics);
+    if (options.length === 0) return;
+    this.draft = options;
+    this.state = "draft";
+  }
+
+  takeRelic(id) {
+    this.player.relics.push(id);
+    applyRelic(id, this.player);
+    if (id === "cartographer") this.revealStairs();
+    this.draft = null;
+    this.state = "playing";
+    this.log(`You take the ${RELICS[id].name}. ${RELICS[id].text}`);
+    this.updateVisibility();
     return true;
   }
 
@@ -217,7 +293,7 @@ export class Game {
       return true;
     }
     this.player.potions--;
-    const healed = this.player.heal(POTION_HEAL);
+    const healed = this.player.heal(POTION_HEAL + this.player.potionBonus);
     this.log(`You drink a potion and recover ${healed} HP.`);
     return this.endTurn();
   }
@@ -235,12 +311,19 @@ export class Game {
     this.burnFuel();
     // Monsters see you by the light as it is before they move.
     this.updateVisibility();
-    const events = this.level.processMonsters(this.player, this.rng, { playerLit: this.playerLit });
+    const darkNotice = this.player.hasRelic("hush") ? 1 : undefined;
+    const events = this.level.processMonsters(this.player, this.rng, { playerLit: this.playerLit, darkNotice });
     for (const event of events) {
-      if (event.target === this.player) {
+      const seen = this.isVisible(event.actor.x, event.actor.y);
+      if (event.windup) {
+        if (seen) this.log(`The ${event.actor.name} raises its club!`);
+      } else if (event.smash) {
+        for (const hit of event.hits) this.reportSmash(event.actor, hit);
+        if (event.hits.length === 0 && seen) this.log(`The ${event.actor.name}'s club thuds into the ground.`);
+      } else if (event.target === this.player) {
         this.log(`The ${event.actor.name} ${event.actor.verb} you for ${event.damage}.`);
         if (event.killed) this.killedBy = event.actor.name;
-      } else if (event.noticed && this.isVisible(event.actor.x, event.actor.y)) {
+      } else if (event.noticed && seen) {
         this.log(`The ${event.actor.name} notices you.`);
       }
     }
@@ -253,6 +336,15 @@ export class Game {
     return true;
   }
 }
+
+Game.prototype.reportSmash = function reportSmash(actor, hit) {
+  if (hit.target === this.player) {
+    this.log(`The ${actor.name}'s club crashes down on you for ${hit.damage}!`);
+    if (hit.killed) this.killedBy = actor.name;
+  } else {
+    this.log(`The ${actor.name}'s club ${hit.killed ? "crushes" : "hits"} the ${hit.target.name}.`);
+  }
+};
 
 export function plural(count, word) {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
