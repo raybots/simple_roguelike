@@ -3,7 +3,7 @@
 A simple roguelike with a character, enemies and a procedurally generated cave to move about.
 Graphics are ASCII characters.
 
-Find the stairs on each level and fight your way down to depth 10, where the Sun Stone waits,
+You are Wick, a torchbearer. Find the stairs on each level and fight your way down to depth 10, where the Sun Stone waits,
 guarded by something that eats light. Take it and you win.
 
 Your torch is everything. It lights what you can see, it burns down as you walk, and its
