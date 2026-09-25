@@ -3,6 +3,9 @@
 A simple roguelike with a character, enemies and a procedurally generated cave to move about.
 Graphics are ASCII characters.
 
+Find the stairs on each level and see how deep you can get before something kills you.
+You only see what's in your line of sight. Tiles you've already explored stay dimly visible.
+
 Play it here: https://raybots.github.io/simple_roguelike/
 
 ## Controls
@@ -10,8 +13,27 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | Action | Keys |
 | --- | --- |
 | Move | Arrow keys, `h` `j` `k` `l`, or `w` `a` `s` `d` |
+| Attack | Walk into a monster |
+| Wait a turn | `.` or Space |
+| Go down stairs | `>` |
+| Drink a potion | `q` |
+| Play again after dying | Enter |
 
-Walk into a monster to attack it.
+## What's in the caves
+
+| Glyph | Thing | Notes |
+| --- | --- | --- |
+| `@` | You | 30 HP. Potions and HP carry over between levels. |
+| `>` | Stairs down | Usually on the far side of the level. |
+| `!` | Potion | Picked up automatically. Heals 10 HP. |
+| `r` | Rat | Weak, but remembers you once it has seen you. |
+| `b` | Bat | Flits about randomly and forgets you when you're out of sight. |
+| `g` | Goblin | Appears from depth 2. Hits for 2. |
+| `O` | Ogre | Appears from depth 4. Slow but hits for 4. |
+| `x` | Corpse | |
+
+Each level has more monsters than the last, and they gain extra HP every three levels.
+The numbers live in `src/bestiary.js` and `src/player.js` if you want to rebalance things.
 
 ## Running locally
 
@@ -24,7 +46,8 @@ python3 -m http.server 8000
 ```
 
 Add `?seed=12345` to the URL to replay a specific map. The seed of each game is printed
-to the browser console.
+to the browser console. The running game can be inspected from the console with
+`const { game } = await import("./src/main.js")`.
 
 ## Tests
 
@@ -39,7 +62,7 @@ npm test
 
 - `src/game.js`: turn engine
 - `src/level.js`, `src/levelgen.js`, `src/cavegen.js`: map state and generation
-- `src/creature.js`, `src/player.js`, `src/monster.js`: entities and monster AI
-- `src/pathfinding.js`, `src/visibility.js`, `src/geometry.js`: breadth-first search, line of sight, Bresenham lines
+- `src/creature.js`, `src/player.js`, `src/monster.js`, `src/bestiary.js`: entities, monster AI and monster stats
+- `src/pathfinding.js`, `src/visibility.js`, `src/geometry.js`: breadth-first search, line of sight and field of view, Bresenham lines
 - `src/render.js`, `src/input.js`: turn game state into text, and keys into actions
 - `src/ui.js`, `src/main.js`: the only browser-specific code

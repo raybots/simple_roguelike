@@ -1,9 +1,13 @@
 export const VIEWPORT = { width: 40, height: 40 };
 
-const FLOOR_GLYPH = " ";
-const WALL_GLYPH = "#";
-const OUT_OF_BOUNDS_GLYPH = "+";
-const CORPSE_GLYPH = "x";
+const GLYPHS = {
+  floor: ".",
+  wall: "#",
+  stairs: ">",
+  potion: "!",
+  corpse: "x",
+  unknown: " ",
+};
 
 // Top-left map coordinate of a viewport centred on the player.
 export function viewportOrigin(player, size = VIEWPORT) {
@@ -13,30 +17,62 @@ export function viewportOrigin(player, size = VIEWPORT) {
   };
 }
 
-// Returns the visible part of the map as an array of strings, one per row.
-export function renderViewport(level, player, size = VIEWPORT) {
+// Returns the viewport as rows of { glyph, cls } cells.
+// cls is one of: vis (in view), dim (remembered), dark (unknown), or an entity class.
+// `isVisible(x, y)` decides what the player can currently see. It defaults to
+// everything, which is handy for tests.
+export function renderViewport(level, player, { size = VIEWPORT, isVisible = () => true } = {}) {
   const origin = viewportOrigin(player, size);
   const rows = [];
 
-  for (let y = 0; y < size.height; y++) {
+  for (let vy = 0; vy < size.height; vy++) {
     const row = [];
-    for (let x = 0; x < size.width; x++) {
-      const tile = level.walls.get(origin.x + x, origin.y + y);
-      row.push(tile === null ? OUT_OF_BOUNDS_GLYPH : tile === 0 ? FLOOR_GLYPH : WALL_GLYPH);
+    for (let vx = 0; vx < size.width; vx++) {
+      row.push(terrainCell(level, origin.x + vx, origin.y + vy, isVisible));
     }
     rows.push(row);
   }
 
-  const draw = (mapX, mapY, glyph) => {
-    const x = mapX - origin.x;
-    const y = mapY - origin.y;
-    if (x >= 0 && x < size.width && y >= 0 && y < size.height) rows[y][x] = glyph;
+  const draw = (x, y, glyph, cls) => {
+    const vx = x - origin.x;
+    const vy = y - origin.y;
+    if (vx >= 0 && vx < size.width && vy >= 0 && vy < size.height) rows[vy][vx] = { glyph, cls };
   };
 
-  // Corpses first so a living monster standing on one is drawn on top.
-  for (const m of level.monsters) if (!m.alive) draw(m.x, m.y, CORPSE_GLYPH);
-  for (const m of level.monsters) if (m.alive) draw(m.x, m.y, m.glyph);
-  draw(player.x, player.y, player.glyph);
+  // Corpses are remembered like terrain. Living monsters only show while in view.
+  for (const m of level.monsters) {
+    if (m.alive) continue;
+    if (isVisible(m.x, m.y)) draw(m.x, m.y, GLYPHS.corpse, "corpse");
+    else if (level.explored.get(m.x, m.y)) draw(m.x, m.y, GLYPHS.corpse, "dim");
+  }
+  for (const m of level.monsters) {
+    if (m.alive && isVisible(m.x, m.y)) draw(m.x, m.y, m.glyph, "mon");
+  }
+  draw(player.x, player.y, player.glyph, "player");
 
-  return rows.map((row) => row.join(""));
+  return rows;
+}
+
+function terrainCell(level, x, y, isVisible) {
+  if (!level.walls.contains(x, y)) return { glyph: GLYPHS.unknown, cls: "dark" };
+  const visible = isVisible(x, y);
+  if (!visible && !level.explored.get(x, y)) return { glyph: GLYPHS.unknown, cls: "dark" };
+
+  if (level.isWall(x, y)) return { glyph: GLYPHS.wall, cls: visible ? "vis" : "dim" };
+  if (level.isStairs(x, y)) return { glyph: GLYPHS.stairs, cls: visible ? "stairs" : "dim" };
+  if (level.itemAt(x, y)) return { glyph: GLYPHS.potion, cls: visible ? "item" : "dim" };
+  return { glyph: GLYPHS.floor, cls: visible ? "vis" : "dim" };
+}
+
+export function rowsToText(rows) {
+  return rows.map((row) => row.map((cell) => cell.glyph).join(""));
+}
+
+export function renderStatus(game) {
+  const { player } = game;
+  return `HP ${Math.max(0, player.hp)}/${player.maxHp}   Potions ${player.potions}   Depth ${game.depth}   Turn ${game.turn}`;
+}
+
+export function recentMessages(game, count = 5) {
+  return game.messages.slice(-count);
 }

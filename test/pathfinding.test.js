@@ -38,3 +38,13 @@ test("the goal counts as reachable even when it is not passable", () => {
 test("start equal to goal returns a single-point path", () => {
   assert.deepEqual(findPath(3, 3, () => true, { x: 1, y: 1 }, { x: 1, y: 1 }), [{ x: 1, y: 1 }]);
 });
+
+test("bfsDistances counts steps and marks unreachable cells -1", async () => {
+  const { bfsDistances } = await import("../src/pathfinding.js");
+  const { level } = levelFromStrings(["...#.", ".#.#.", "...#."]);
+  const d = bfsDistances(level.width, level.height, (x, y) => !level.isWall(x, y), { x: 0, y: 0 });
+  assert.equal(d.get(0, 0), 0);
+  assert.equal(d.get(2, 2), 4);
+  assert.equal(d.get(4, 0), -1);
+  assert.equal(d.get(3, 0), -1);
+});

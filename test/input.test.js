@@ -25,3 +25,11 @@ test("modifier combinations and unknown keys are ignored", () => {
   assert.equal(actionForKey(key("ArrowUp", { metaKey: true })), null);
   assert.equal(actionForKey(key("z")), null);
 });
+
+test("wait, descend, quaff and restart keys", () => {
+  assert.equal(actionForKey(key(".")), "wait");
+  assert.equal(actionForKey(key(" ")), "wait");
+  assert.equal(actionForKey(key(">")), "descend");
+  assert.equal(actionForKey(key("q")), "quaff");
+  assert.equal(actionForKey(key("Enter")), "restart");
+});

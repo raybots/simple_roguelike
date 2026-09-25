@@ -10,8 +10,19 @@
   </head>
   <body>
     <div id="stage">
-      <h1>Use arrow keys to move</h1>
-      <pre id="map" aria-label="Game map"></pre>
+      <h1>Simple Roguelike</h1>
+      <div id="game">
+        <pre id="status" aria-live="polite"></pre>
+        <div id="map-wrap">
+          <pre id="map" aria-label="Game map"></pre>
+          <div id="overlay" hidden></div>
+        </div>
+        <pre id="log" aria-live="polite"></pre>
+        <p id="help">
+          Move: arrows, WASD or hjkl &middot; Attack: walk into a monster &middot; Wait: . or space
+          &middot; Descend: &gt; &middot; Drink potion: q
+        </p>
+      </div>
     </div>
   </body>
 </html>
