@@ -37,6 +37,7 @@ export function messageTone(text) {
   if (/notices you|raises its club/.test(text)) return "warn";
   if (/^You take the/.test(text)) return "relic";
   if (/chasm/.test(text)) return "depth";
+  if (/bones of a past/.test(text)) return "relic";
   if (/torch|oil|brazier|[Dd]arkness/.test(text)) return "fire";
   if (/descend|stairs down/.test(text)) return "depth";
   return "plain";

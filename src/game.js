@@ -31,15 +31,25 @@ const FUEL_WARNINGS = [
 ];
 
 // The turn engine. Knows nothing about the DOM.
+//
+// Options:
+//   seed  - replay the same cave on every restart (used by the daily cave)
+//   bones - { depth, potions } left by a previous death, found on that depth
 export class Game {
-  constructor({ width = 60, height = 60, rng = createRng() } = {}) {
+  constructor({ width = 60, height = 60, rng, seed, bones = null } = {}) {
     this.width = width;
     this.height = height;
-    this.rng = rng;
+    this.seed = seed;
+    this.rng = rng ?? createRng(seed);
+    this.bones = bones;
     this.newGame();
   }
 
   newGame() {
+    if (this.seed !== undefined && this.started) this.rng = createRng(this.seed);
+    this.started = true;
+    this.effects = [];
+    this.bonesFound = false;
     this.player = new Player();
     this.depth = 1;
     this.turn = 0;
@@ -56,8 +66,33 @@ export class Game {
     const blueprint = generateLevel({ width: this.width, height: this.height, depth: this.depth, rng: this.rng });
     this.level = new Level(blueprint);
     this.level.placeCreature(this.player, blueprint.playerStart.x, blueprint.playerStart.y);
+    this.placeBones(blueprint);
     if (this.player.hasRelic("cartographer")) this.revealStairs();
     this.updateVisibility();
+  }
+
+  // A previous adventurer's remains lie on the depth where they died.
+  placeBones(blueprint) {
+    const { bones } = this;
+    if (!bones || this.bonesFound || bones.depth !== this.depth || bones.depth < 2) return;
+    const { level } = this;
+    const spot = blueprint.walls.cells
+      .map((v, i) => ({ x: i % level.width, y: Math.floor(i / level.width), v }))
+      .filter(({ x, y, v }) => v === 0 && level.isPassable(x, y) && !level.itemAt(x, y) && !level.isStairs(x, y))
+      .filter(({ x, y }) => Math.hypot(x - this.player.x, y - this.player.y) >= 8);
+    if (spot.length === 0) return;
+    const { x, y } = this.rng.pick(spot);
+    level.items.set(x, y, { type: "bones", potions: bones.potions });
+  }
+
+  // Describes this run for leaving bones behind, or null if there's nothing to leave.
+  bonesRecord() {
+    if (this.state !== "dead" || this.depth < 2) return null;
+    return { depth: this.depth, potions: Math.max(1, this.player.potions) };
+  }
+
+  effect(type, data = {}) {
+    this.effects.push({ type, ...data });
   }
 
   revealStairs() {
@@ -143,10 +178,13 @@ export class Game {
   }
 
   // Returns true when anything changed and the screen should be redrawn.
+  // After each call, `effects` lists what happened, for sound and animation.
   playerAction(action) {
+    this.effects = [];
     if (this.state === "dead") {
       if (action !== "restart") return false;
       this.newGame();
+      this.effect("restart");
       return true;
     }
     if (this.state === "draft") {
@@ -175,6 +213,7 @@ export class Game {
     const sneak = target && target.unaware;
     const multiplier = sneak ? (this.player.hasRelic("shadowstep") ? SHADOWSTEP_MULTIPLIER : SNEAK_MULTIPLIER) : 1;
     const result = this.level.moveCreature(this.player, x, y, { multiplier });
+    if (result.moved) this.effect("step");
     if (result.target) this.reportAttack(result, sneak);
     if (result.item) this.pickUp(result.item);
     if (result.moved && this.level.isStairs(x, y)) this.log("There are stairs down here. Press > to descend.");
@@ -182,12 +221,16 @@ export class Game {
   }
 
   reportAttack(result, sneak) {
-    const { target, killed } = result;
+    const { target, killed, damage } = result;
     const name = target.name;
+    this.effect("hit", { x: target.x, y: target.y, amount: damage, killed, sneak, by: "player" });
     if (sneak) this.log(killed ? `You strike the unaware ${name} dead!` : `You strike the unaware ${name}!`);
     else this.log(killed ? `You kill the ${name}.` : `You hit the ${name}.`);
     if (!killed) target.state = "hunting";
-    if (killed && this.player.hasRelic("vampiric") && this.player.heal(1) > 0) this.log("You drink its life. (+1)");
+    if (killed && this.player.hasRelic("vampiric") && this.player.heal(1) > 0) {
+      this.log("You drink its life. (+1)");
+      this.effect("heal", { x: this.player.x, y: this.player.y, amount: 1 });
+    }
     this.makeNoise(target.x, target.y);
   }
 
@@ -199,12 +242,17 @@ export class Game {
   }
 
   pickUp(item) {
+    this.effect("pickup", { kind: item.type });
     if (item.type === "potion") {
       this.player.potions++;
       this.log("You pick up a potion. Press q to drink it.");
     } else if (item.type === "oil") {
       const added = this.player.addFuel(OIL_FUEL);
       this.log(`You refill your torch with oil (+${added}).`);
+    } else if (item.type === "bones") {
+      this.bonesFound = true;
+      this.player.potions += item.potions;
+      this.log(`You find the bones of a past adventurer, and ${plural(item.potions, "potion")} they never drank.`);
     }
   }
 
@@ -221,9 +269,13 @@ export class Game {
     this.player.fuel -= BRAZIER_COST;
     this.level.lightBrazier(x, y);
     this.log("You light the brazier. Warm light floods the cave.");
+    this.effect("brazier", { x, y });
     if (this.player.hasRelic("lantern")) {
       const healed = this.player.heal(5);
-      if (healed > 0) this.log(`The flame mends you. (+${healed})`);
+      if (healed > 0) {
+        this.log(`The flame mends you. (+${healed})`);
+        this.effect("heal", { x: this.player.x, y: this.player.y, amount: healed });
+      }
     }
     return this.endTurn();
   }
@@ -233,12 +285,14 @@ export class Game {
     if (player.torchLit) {
       player.torchLit = false;
       this.log("You douse your torch. The dark hides you.");
+      this.effect("torch", { lit: false });
     } else if (player.fuel <= 0) {
       this.log("Your torch has no fuel left.");
       return true;
     } else {
       player.torchLit = true;
       this.log("You relight your torch.");
+      this.effect("torch", { lit: true });
     }
     return this.endTurn();
   }
@@ -249,6 +303,7 @@ export class Game {
       return true;
     }
     this.goDeeper();
+    this.effect("descend");
     this.log(`You descend to depth ${this.depth}.`);
     return true;
   }
@@ -259,6 +314,7 @@ export class Game {
     const hurt = Math.min(FALL_DAMAGE, player.hp - 1);
     player.hp -= hurt;
     this.goDeeper();
+    this.effect("fall", { amount: hurt });
     this.log(`You leap into the chasm and land hard on depth ${this.depth}. (-${hurt})`);
     return true;
   }
@@ -282,6 +338,7 @@ export class Game {
     if (id === "cartographer") this.revealStairs();
     this.draft = null;
     this.state = "playing";
+    this.effect("relic", { id });
     this.log(`You take the ${RELICS[id].name}. ${RELICS[id].text}`);
     this.updateVisibility();
     return true;
@@ -294,6 +351,7 @@ export class Game {
     }
     this.player.potions--;
     const healed = this.player.heal(POTION_HEAL + this.player.potionBonus);
+    this.effect("heal", { x: this.player.x, y: this.player.y, amount: healed });
     this.log(`You drink a potion and recover ${healed} HP.`);
     return this.endTurn();
   }
@@ -304,7 +362,10 @@ export class Game {
     player.fuel--;
     const warning = FUEL_WARNINGS.find((w) => w.at === player.fuel);
     if (warning) this.log(warning.text);
-    if (player.fuel === 0) this.log("Your torch dies. Darkness closes in.");
+    if (player.fuel === 0) {
+      this.log("Your torch dies. Darkness closes in.");
+      this.effect("torch", { lit: false, died: true });
+    }
   }
 
   endTurn() {
@@ -317,20 +378,25 @@ export class Game {
       const seen = this.isVisible(event.actor.x, event.actor.y);
       if (event.windup) {
         if (seen) this.log(`The ${event.actor.name} raises its club!`);
+        this.effect("windup", { x: event.actor.x, y: event.actor.y });
       } else if (event.smash) {
         for (const hit of event.hits) this.reportSmash(event.actor, hit);
         if (event.hits.length === 0 && seen) this.log(`The ${event.actor.name}'s club thuds into the ground.`);
+        this.effect("smash", { x: event.actor.x, y: event.actor.y });
       } else if (event.target === this.player) {
         this.log(`The ${event.actor.name} ${event.actor.verb} you for ${event.damage}.`);
+        this.effect("hit", { x: this.player.x, y: this.player.y, amount: event.damage, by: "monster" });
         if (event.killed) this.killedBy = event.actor.name;
       } else if (event.noticed && seen) {
         this.log(`The ${event.actor.name} notices you.`);
+        this.effect("notice", { x: event.actor.x, y: event.actor.y });
       }
     }
     this.turn++;
     if (!this.player.alive) {
       this.state = "dead";
       this.log(`You die on depth ${this.depth} after ${plural(this.turn, "turn")}.`);
+      this.effect("death");
     }
     this.updateVisibility();
     return true;
@@ -338,6 +404,13 @@ export class Game {
 }
 
 Game.prototype.reportSmash = function reportSmash(actor, hit) {
+  this.effect("hit", {
+    x: hit.target.x,
+    y: hit.target.y,
+    amount: hit.damage,
+    killed: hit.killed,
+    by: hit.target === this.player ? "monster" : "smash",
+  });
   if (hit.target === this.player) {
     this.log(`The ${actor.name}'s club crashes down on you for ${hit.damage}!`);
     if (hit.killed) this.killedBy = actor.name;

@@ -170,7 +170,7 @@ h1 span {
 
 #hud {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr repeat(4, auto);
   align-items: end;
   gap: 22px;
   font-family: var(--mono);
@@ -323,6 +323,8 @@ h1 span {
 }
 
 #map {
+  position: relative;
+  transition: transform 0.12s cubic-bezier(0.25, 0.8, 0.3, 1);
   display: grid;
   grid-template-columns: repeat(var(--cols), var(--cell));
   grid-auto-rows: var(--cell);
@@ -721,6 +723,57 @@ h1 span {
   color: #b09a86;
 }
 
+/* ───────────── Juice ───────────── */
+
+#map .floater {
+  position: absolute;
+  z-index: 3;
+  translate: -50% -50%;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: calc(var(--cell) * 0.9);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: float-up 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+#map .floater.deal { color: #fff1d6; text-shadow: 0 0 8px var(--torch), 0 1px 0 #000; }
+#map .floater.sneak { color: #ffe066; font-size: calc(var(--cell) * 1.15); text-shadow: 0 0 12px #ffb000, 0 1px 0 #000; }
+#map .floater.hurt { color: #ff5a5a; text-shadow: 0 0 10px #ff1a1a, 0 1px 0 #000; }
+#map .floater.heal { color: #ff8cc6; text-shadow: 0 0 10px var(--potion), 0 1px 0 #000; }
+
+@keyframes float-up {
+  0% { opacity: 0; transform: translateY(4px) scale(0.6); }
+  15% { opacity: 1; transform: translateY(-6px) scale(1.25); }
+  100% { opacity: 0; transform: translateY(-30px) scale(1); }
+}
+
+#map .spark {
+  position: absolute;
+  z-index: 2;
+  translate: -50% -50%;
+  font-family: var(--mono);
+  font-size: calc(var(--cell) * 0.7);
+  pointer-events: none;
+  animation: spark 0.55s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+#map .spark.spark { color: #ffd9a0; text-shadow: 0 0 6px var(--torch); }
+#map .spark.blood { color: #ff3a3a; text-shadow: 0 0 6px #a00; }
+#map .spark.ember { color: #ffb040; text-shadow: 0 0 8px var(--flame); animation-duration: 0.9s; }
+
+@keyframes spark {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--spin)); }
+}
+
+#map-wrap.impact {
+  animation: impact 0.16s ease-out;
+}
+
+@keyframes impact {
+  0% { transform: scale(1.018); filter: brightness(1.6) contrast(1.1); }
+  100% { transform: scale(1); filter: none; }
+}
+
 /* ───────────── Death ───────────── */
 
 #overlay {
@@ -767,6 +820,14 @@ h1 span {
   letter-spacing: 0.06em;
   color: #e8d9c4;
   text-shadow: 0 2px 0 #000;
+}
+
+.epitaph-best {
+  margin: -10px 0 22px;
+  font-family: var(--serif-sc);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--torch);
 }
 
 .epitaph-line {
@@ -870,6 +931,32 @@ h1 span {
 .g-chasm { color: #b58cff; }
 .g-danger { color: #ff6a5a; }
 
+#help button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+#help button[aria-pressed="true"] {
+  color: var(--torch);
+}
+
+#mode-link {
+  margin-left: auto;
+  color: var(--torch);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 180, 100, 0.35);
+}
+#mode-link:hover {
+  border-bottom-color: var(--torch);
+}
+
+.best .value {
+  color: var(--muted);
+}
+
 kbd {
   display: inline-block;
   min-width: 22px;
@@ -892,7 +979,8 @@ kbd {
     grid-template-columns: 1fr auto auto;
     gap: 14px;
   }
-  #hud .turns {
+  #hud .turns,
+  #hud .best {
     display: none;
   }
 }

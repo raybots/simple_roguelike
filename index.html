@@ -40,6 +40,7 @@
           <div class="stat vials"><span class="label">Vials</span><span id="potions" class="value">0</span></div>
           <div class="stat depth"><span class="label">Depth</span><span id="depth" class="value big">1</span></div>
           <div class="stat turns"><span class="label">Turn</span><span id="turn" class="value">0</span></div>
+          <div class="stat best"><span class="label">Best</span><span id="best" class="value">0</span></div>
         </div>
         <div id="relics" aria-label="Relics"></div>
         <p id="status" class="sr-only" aria-live="polite"></p>
@@ -58,6 +59,7 @@
               <p class="rip">✝</p>
               <h2 class="epitaph-title"></h2>
               <p class="epitaph-line"></p>
+              <p class="epitaph-best"></p>
               <p class="again"><kbd>Enter</kbd> to rise again</p>
             </div>
           </div>
@@ -71,6 +73,8 @@
           <span><kbd>&gt;</kbd> descend</span>
           <span><kbd>q</kbd> drink</span>
           <span><kbd>t</kbd> douse torch</span>
+          <span><kbd>m</kbd> <button id="mute" type="button" aria-pressed="true">sound off</button></span>
+          <a id="mode-link" href="?daily">Play today's cave</a>
           <span class="aside">
             also <kbd>wasd</kbd> <kbd>hjkl</kbd> · walk into foes to strike · unaware foes take triple damage ·
             bump a brazier <b class="g-brazier">Ω</b> to light it · oil <b class="g-oil">¤</b> feeds your torch ·
