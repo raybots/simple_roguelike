@@ -1,83 +1,40 @@
-RayGame.subclass( Monster, Creature);
+import { Creature } from "./creature.js";
+import { distance } from "./geometry.js";
+import { findPath } from "./pathfinding.js";
+import { hasLineOfSight } from "./visibility.js";
 
-function Monster(moveCallback)
-{
-	Creature.call(this);
+export class Monster extends Creature {
+  constructor({ x = 0, y = 0, glyph = "r", name = "rat", hp = 2, damage = 1, range = 20 } = {}) {
+    super({ x, y, glyph, name, hp, damage });
+    this.range = range;
+    this.seenPlayer = false;
+  }
 
-	// stats to indicate a default rat creature
-	this.look = "r"
-	this.range = 20;
-	this.seenPlayer = false;
+  // Checks line of sight to the target. Once seen, the monster remembers the player.
+  canSee(level, target) {
+    const visible = hasLineOfSight((x, y) => level.isWall(x, y), this.x, this.y, target.x, target.y);
+    if (visible) this.seenPlayer = true;
+    return visible;
+  }
 
-	this.moveCallback = moveCallback;
-}
+  // Chases the player one step along the shortest path once it has spotted them.
+  // Returns the level's move result, or null if the monster did nothing.
+  takeTurn(level, player) {
+    if (!this.alive) return null;
 
-// draw a line from the monster to the character to see if the monster has line of sight
-Monster.prototype.hasLOS = function(playerX, playerY, wallGrid)
-{
-	var lineArray = getLine(this.x, this.y, playerX, playerY, wallGrid.matrix);
+    const inRange = distance(this.x, this.y, player.x, player.y) <= this.range;
+    if (!inRange && !this.seenPlayer) return null;
+    const sees = this.canSee(level, player);
+    if (!sees && !this.seenPlayer) return null;
 
-	var hasLOS = true;
-
-	if (lineArray.length > 0)
-	{
-		for (var i = 0; i < lineArray.length; i++)
-		{
-			if (lineArray[i] == 1)
-			{	
-				hasLOS = false;
-			}
-		}
-	}
-	else
-	{
-		hasLOS = false;
-	}
-
-	if (hasLOS)
-		this.seenPlayer = true;
-
-	return hasLOS;
-}
-
-// if the monster has line of sight to the player, it will use the A* search algorithm to chase the player
-Monster.prototype.process = function(playerX, playerY, wallGrid, creatureGrid)
-{
-	if (lineDistance(playerX, playerY, this.x, this.y) <= this.range || this.seenPlayer == true)
-	{
-		if (this.hasLOS(playerX, playerY, wallGrid) || this.seenPlayer == true)
-		{
-			// A Star search algorithm used to find path
-			var finder = new PF.AStarFinder();
-
-			var grid = new PF.Grid(wallGrid.width, wallGrid.height, wallGrid.matrix);
-
-			for (var y = 0; y < creatureGrid.height; y++)
-			{
-				for (var x = 0; x < creatureGrid.width; x++)
-				{
-					// account for other creatures that might be in the way
-					if (creatureGrid.getVal(x, y))
-					{	
-						if (!creatureGrid.getVal(x, y).isAlive)
-							grid.setWalkableAt(x, y, false);
-					}
-				}
-			}
-
-			// monster should always try to reach the player
-			grid.setWalkableAt(playerX, playerY, true);			
-
-			var path = finder.findPath(this.x, this.y, playerX, playerY, grid);
-
-		    if (path.length > 1)
-		    {
-		    	var posX = path[1][0];
-		    	var posY = path[1][1];
-
-			    this.moveCallback(posX, posY, this);
-			}
-		}
-	}
-
+    const path = findPath(
+      level.width,
+      level.height,
+      (x, y) => level.isPassable(x, y),
+      { x: this.x, y: this.y },
+      { x: player.x, y: player.y },
+    );
+    if (!path || path.length < 2) return null;
+    return level.moveCreature(this, path[1].x, path[1].y);
+  }
 }
