@@ -50,17 +50,20 @@ function relicsText(n) {
   return n === 0 ? "no relics at all" : `${n} ${n === 1 ? "relic" : "relics"}`;
 }
 
+// The torchbearer's name. The wick is the part of the torch that burns down.
+export const HERO_NAME = "Wick";
+
 // Returns an epitaph for the death or victory screen.
 export function epitaph(game) {
   const turnsText = `${game.turn} ${game.turn === 1 ? "turn" : "turns"}`;
   if (game.state === "won") {
     return {
       title: "The Sun Rises Below",
-      line: `Ray carried the Sun Stone out of the deep after ${turnsText}, bearing ${relicsText(game.player.relics.length)}.`,
+      line: `${HERO_NAME} carried the Sun Stone out of the deep after ${turnsText}, bearing ${relicsText(game.player.relics.length)}.`,
     };
   }
   const causes = { flames: "Burned alive", Lightless: "Devoured by the Lightless" };
   const cause = causes[game.killedBy] ?? (game.killedBy ? `Slain by a ${game.killedBy}` : "Slain");
   const turns = `${game.turn} ${game.turn === 1 ? "turn" : "turns"}`;
-  return { title: "Here lies Ray", line: `${cause} on depth ${game.depth}, after ${turns}.` };
+  return { title: `Here lies ${HERO_NAME}`, line: `${cause} on depth ${game.depth}, after ${turns}.` };
 }
