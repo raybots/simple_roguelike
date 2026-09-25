@@ -8,6 +8,7 @@ const GLYPHS = {
   unknown: " ",
   brazier: "Ω",
   chasm: ":",
+  torch: "/",
   fire: "^",
 };
 
@@ -78,6 +79,7 @@ function terrainGlyph(level, x, y) {
   if (feature?.type === "brazier") return { glyph: GLYPHS.brazier, cls: feature.lit ? "brazier-lit" : "brazier" };
   if (feature?.type === "chasm") return { glyph: GLYPHS.chasm, cls: "chasm" };
   if (level.isStairs(x, y)) return { glyph: GLYPHS.stairs, cls: "stairs" };
+  if (level.isTorchAt(x, y)) return { glyph: GLYPHS.torch, cls: "torch-item" };
   const item = level.itemAt(x, y);
   if (item) return { glyph: ITEM_GLYPHS[item.type] ?? "?", cls: "item", kind: item.type };
   if (level.isBurning(x, y)) return { glyph: GLYPHS.fire, cls: "fire" };

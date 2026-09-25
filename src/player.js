@@ -13,6 +13,8 @@ export class Player extends Creature {
     this.fuel = MAX_FUEL;
     this.maxFuel = MAX_FUEL;
     this.torchLit = true;
+    // False while the torch lies where you threw it, or a goblin has run off with it.
+    this.hasTorch = true;
     this.minTorchRadius = 0;
     this.potionBonus = 0;
     this.relics = [];
@@ -22,8 +24,14 @@ export class Player extends Creature {
     return this.relics.includes(id);
   }
 
+  // Whether the flame is alive, wherever the torch is.
   get torchBurning() {
     return this.torchLit && this.fuel > 0;
+  }
+
+  // Whether you're holding a burning torch.
+  get carryingLight() {
+    return this.hasTorch && this.torchBurning;
   }
 
   // Sight radius from the torch: 8 when full, shrinking to 3 as fuel runs low. 0 when dark.

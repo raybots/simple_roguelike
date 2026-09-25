@@ -1,3 +1,4 @@
+import { DIRECTIONS } from "./game.js";
 import { actionForKey } from "./input.js";
 import { recentMessages, renderStatus, renderViewport, VIEWPORT, viewportOrigin } from "./render.js";
 import { RELICS } from "./relics.js";
@@ -8,6 +9,10 @@ import { cellClass, displayGlyph, epitaph, messageTone, STATE_MARKERS } from "./
 const MIN_VISIBLE_LIGHT = 0.14;
 const SPARK_GLYPHS = ["*", "'", "`", ",", ".", "+", "·"];
 const IMPACT_DAMAGE = 4;
+// Touch: how far a finger must travel to count as a swipe, and D-pad repeat timing.
+const SWIPE_DISTANCE = 24;
+const REPEAT_DELAY = 280;
+const REPEAT_EVERY = 130;
 
 const LOG_LINES = 6;
 
@@ -83,12 +88,67 @@ export class DomUI {
     // The start card: a click or key press gives the page focus and lets sound play.
     this.start = this.root.querySelector("#start");
     this.start?.addEventListener("click", () => this.begin());
+    this.overlay.addEventListener("click", () => this.act("restart"));
+    this.setupTouch();
     this.muteButton.addEventListener("click", () => {
       this.audio?.start();
       this.audio?.toggleMute();
       this.renderMute();
     });
     this.renderMute();
+  }
+
+  // On-screen D-pad and action buttons, plus swiping on the map.
+  setupTouch() {
+    const pad = this.root.querySelector("#pad");
+    if (!pad) return;
+    if (window.matchMedia?.("(pointer: coarse)").matches || "ontouchstart" in window) {
+      document.body.classList.add("touch");
+    }
+    let timer = null;
+    const stop = () => {
+      clearTimeout(timer);
+      clearInterval(timer);
+      timer = null;
+    };
+    for (const button of pad.querySelectorAll("[data-act]")) {
+      const action = button.dataset.act;
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        document.body.classList.add("touch");
+        if (this.begin()) return;
+        this.act(action);
+        stop();
+        if (action in DIRECTIONS && this.game.state === "playing") {
+          timer = setTimeout(() => {
+            timer = setInterval(() => {
+              if (this.game.state === "playing") this.act(action);
+              else stop();
+            }, REPEAT_EVERY);
+          }, REPEAT_DELAY);
+        }
+      });
+      for (const end of ["pointerup", "pointerleave", "pointercancel"]) button.addEventListener(end, stop);
+      // Keyboard users can still press the buttons with Enter or Space.
+      button.addEventListener("click", (event) => {
+        if (event.detail === 0) this.act(action);
+      });
+    }
+
+    let origin = null;
+    this.mapWrap.addEventListener("pointerdown", (event) => {
+      if (event.pointerType !== "mouse") origin = { x: event.clientX, y: event.clientY };
+    });
+    this.mapWrap.addEventListener("pointerup", (event) => {
+      if (!origin || event.target.closest("#start, #overlay, #draft")) return (origin = null);
+      const dx = event.clientX - origin.x;
+      const dy = event.clientY - origin.y;
+      origin = null;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_DISTANCE) return;
+      if (Math.abs(dx) > Math.abs(dy)) this.act(dx > 0 ? "right" : "left");
+      else this.act(dy > 0 ? "down" : "up");
+    });
+    this.pad = pad;
   }
 
   renderMute() {
@@ -159,7 +219,10 @@ export class DomUI {
       }),
     );
     this.mapWrap.style.setProperty("--torch", game.torchRadius / 8);
-    this.mapWrap.classList.toggle("doused", !game.player.torchBurning);
+    this.mapWrap.classList.toggle("doused", !game.player.carryingLight);
+    this.mapWrap.classList.toggle("aiming", game.state === "aiming");
+    this.pad?.classList.toggle("aiming", game.state === "aiming");
+    this.renderAim(origin);
     const biome = `biome-${game.level.biome}`;
     if (this.biomeClass !== biome) {
       if (this.biomeClass) this.mapWrap.classList.remove(this.biomeClass);
@@ -184,7 +247,13 @@ export class DomUI {
     this.hpText.textContent = `${hp}/${player.maxHp}`;
     this.hud.classList.toggle("low", ratio <= 0.3 && hp > 0);
     this.fuelFill.style.setProperty("--fuel", player.fuel / player.maxFuel);
-    this.fuelText.textContent = player.torchBurning ? `r${this.game.torchRadius}` : player.fuel > 0 ? "out" : "dead";
+    this.fuelText.textContent = !player.hasTorch
+      ? "thrown"
+      : player.torchBurning
+        ? `r${this.game.torchRadius}`
+        : player.fuel > 0
+          ? "out"
+          : "dead";
     this.hud.classList.toggle("fuel-low", player.fuel <= 100);
     this.potions.textContent = player.potions;
     this.potions.parentElement.classList.toggle("empty", player.potions === 0);
@@ -284,6 +353,38 @@ export class DomUI {
       : `Deepest so far: depth ${this.best}.`;
   }
 
+  // While aiming, shows where the torch would fly in each direction.
+  renderAim(origin) {
+    for (const span of this.aimed ?? []) span.classList.remove("aim", "aim-land");
+    this.aimed = [];
+    if (this.game.state !== "aiming") return;
+    for (const [dx, dy] of Object.values(DIRECTIONS)) {
+      const path = this.game.throwPath(dx, dy);
+      path.forEach(({ x, y }, i) => {
+        const span = this.cells[y - origin.y]?.[x - origin.x];
+        if (!span) return;
+        span.classList.add(i === path.length - 1 ? "aim-land" : "aim");
+        this.aimed.push(span);
+      });
+    }
+  }
+
+  // The torch arcs along its path, tile by tile.
+  flyTorch(path, origin, size) {
+    const el = document.createElement("span");
+    el.className = "flying-torch";
+    el.textContent = "/";
+    const px = ({ x, y }) => `translate(${(x - origin.x + 0.5) * size}px, ${(y - origin.y + 0.5) * size}px)`;
+    const start = { x: this.game.player.x, y: this.game.player.y };
+    const frames = [start, ...path].map((p, i, all) => ({
+      transform: `${px(p)} rotate(${i * 120}deg) scale(${1 + Math.sin((i / (all.length - 1)) * Math.PI) * 0.6})`,
+    }));
+    this.map.appendChild(el);
+    const flight = el.animate(frames, { duration: 60 * frames.length + 120, easing: "cubic-bezier(0.3, 0.6, 0.4, 1)" });
+    flight.onfinish = () => el.remove();
+    flight.oncancel = () => el.remove();
+  }
+
   // Slides the map from where the camera was to where it is now, so movement glides.
   glide(dx, dy) {
     const size = this.cellSize;
@@ -314,6 +415,9 @@ export class DomUI {
         impact = true;
       } else if (e.type === "brazier") {
         this.sparks(at(e), "ember", 16);
+      } else if (e.type === "throw") {
+        this.flyTorch(e.path, origin, size);
+        this.sparks(at(e.path.at(-1)), "ember", 10);
       }
     }
     if (impact) replay(this.mapWrap, "impact");
@@ -366,7 +470,7 @@ export class DomUI {
     this.render();
     this.spawnEffects(game.effects);
     this.audio?.setDepth(game.depth);
-    this.audio?.setTorch(game.torchRadius);
+    this.audio?.setTorch(game.player.carryingLight ? game.torchRadius : 0);
     this.audio?.play(game.effects);
   }
 
