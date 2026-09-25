@@ -4,7 +4,7 @@ import { Game } from "../src/game.js";
 import { createRng } from "../src/rng.js";
 import { gameFromStrings } from "./helpers/maps.js";
 
-const ACTIONS = ["left", "right", "up", "down", "wait", "descend", "quaff"];
+const ACTIONS = ["left", "right", "up", "down", "wait", "descend", "quaff", "torch", "choose1", "choose2", "choose3"];
 
 test("the player moves one tile and the turn advances", () => {
   const { game, player } = gameFromStrings(["@.."]);

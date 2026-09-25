@@ -54,7 +54,7 @@ test("a monster out of range that has not seen the player ignores them", () => {
   assert.equal(monsters[0].seenPlayer, false);
 });
 
-test("an ogre acts every other turn", () => {
+test("an ogre only moves every other turn", () => {
   const { level, player, monsters } = levelFromStrings(["O.....@"]);
   const ogre = monsters[0];
   ogre.seenPlayer = true;
@@ -63,7 +63,7 @@ test("an ogre acts every other turn", () => {
     ogre.takeTurn(level, player);
     xs.push(ogre.x);
   }
-  assert.deepEqual(xs, [0, 1, 1, 2]);
+  assert.deepEqual(xs, [1, 1, 2, 2]);
 });
 
 test("an erratic bat sometimes takes a random step instead of chasing", () => {

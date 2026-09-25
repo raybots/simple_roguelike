@@ -41,12 +41,18 @@
           <div class="stat depth"><span class="label">Depth</span><span id="depth" class="value big">1</span></div>
           <div class="stat turns"><span class="label">Turn</span><span id="turn" class="value">0</span></div>
         </div>
+        <div id="relics" aria-label="Relics"></div>
         <p id="status" class="sr-only" aria-live="polite"></p>
 
         <div id="map-wrap">
           <div id="map" role="img" aria-label="Game map"></div>
           <div class="torch" aria-hidden="true"></div>
           <div class="fx" aria-hidden="true"></div>
+          <div id="draft" hidden>
+            <p class="draft-kicker">deeper still</p>
+            <h2 class="draft-title">Choose a relic</h2>
+            <div class="cards"></div>
+          </div>
           <div id="overlay" hidden>
             <div class="stone">
               <p class="rip">✝</p>
@@ -67,7 +73,8 @@
           <span><kbd>t</kbd> douse torch</span>
           <span class="aside">
             also <kbd>wasd</kbd> <kbd>hjkl</kbd> · walk into foes to strike · unaware foes take triple damage ·
-            bump a brazier <b class="g-brazier">Ω</b> to light it · oil <b class="g-oil">¤</b> feeds your torch
+            bump a brazier <b class="g-brazier">Ω</b> to light it · oil <b class="g-oil">¤</b> feeds your torch ·
+            leap into a chasm <b class="g-chasm">:</b> to drop a level · step out of <b class="g-danger">red</b> tiles
           </span>
         </footer>
       </section>

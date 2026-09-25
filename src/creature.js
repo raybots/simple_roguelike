@@ -7,6 +7,7 @@ export class Creature {
     this.hp = hp;
     this.maxHp = hp;
     this.damage = damage;
+    this.armor = 0;
   }
 
   // A getter, so it can't be mistakenly referenced without being called.
@@ -20,7 +21,12 @@ export class Creature {
   }
 
   attack(target, multiplier = 1) {
-    const damage = this.damage * multiplier;
+    return this.strike(target, this.damage * multiplier);
+  }
+
+  // Deals raw damage, reduced by the target's armour but never below 1.
+  strike(target, amount) {
+    const damage = Math.max(1, amount - target.armor);
     target.hp -= damage;
     return { damage, killed: !target.alive };
   }

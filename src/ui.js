@@ -1,5 +1,6 @@
 import { actionForKey } from "./input.js";
 import { recentMessages, renderStatus, renderViewport, VIEWPORT, viewportOrigin } from "./render.js";
+import { RELICS } from "./relics.js";
 import { cellClass, displayGlyph, epitaph, messageTone, STATE_MARKERS } from "./theme.js";
 
 // Visible tiles never go fully black, even outside any light.
@@ -32,6 +33,9 @@ export class DomUI {
     this.potions = root.querySelector("#potions");
     this.depth = root.querySelector("#depth");
     this.turn = root.querySelector("#turn");
+    this.relics = root.querySelector("#relics");
+    this.draft = root.querySelector("#draft");
+    this.relicCount = -1;
 
     this.buildGrid();
     this.last = { hp: game.player.hp, depth: game.depth, messageCount: game.messageCount, state: game.state };
@@ -62,7 +66,12 @@ export class DomUI {
     const { game } = this;
     const isVisible = (x, y) => game.isVisible(x, y);
     const lightAt = (x, y) => game.lightAt(x, y);
-    const rows = renderViewport(game.level, game.player, { isVisible, lightAt });
+    const rows = renderViewport(game.level, game.player, {
+      isVisible,
+      lightAt,
+      isSensed: (m) => game.isSensed(m),
+      isDanger: (x, y) => game.isDanger(x, y),
+    });
     const origin = viewportOrigin(game.player);
     rows.forEach((row, y) =>
       row.forEach((cell, x) => {
@@ -96,6 +105,8 @@ export class DomUI {
     this.renderLog();
     this.renderEffects();
     this.renderOverlay();
+    this.renderRelics();
+    this.renderDraft();
     this.status.textContent = renderStatus(game);
   }
 
@@ -143,6 +154,47 @@ export class DomUI {
     last.depth = game.depth;
     last.messageCount = game.messageCount;
     last.state = game.state;
+  }
+
+  renderRelics() {
+    const { relics } = this.game.player;
+    if (relics.length === this.relicCount) return;
+    this.relicCount = relics.length;
+    this.relics.replaceChildren(
+      ...relics.map((id, i) => {
+        const chip = document.createElement("span");
+        chip.className = "relic";
+        chip.textContent = RELICS[id].glyph;
+        chip.title = `${RELICS[id].name}: ${RELICS[id].text}`;
+        if (i === relics.length - 1) chip.classList.add("new");
+        return chip;
+      }),
+    );
+  }
+
+  renderDraft() {
+    const { game } = this;
+    const open = game.state === "draft";
+    if (open === !this.draft.hidden) return;
+    this.draft.hidden = !open;
+    if (!open) return;
+    this.draft.querySelector(".cards").replaceChildren(
+      ...game.draft.map((id, i) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.style.setProperty("--i", i);
+        const relic = RELICS[id];
+        card.innerHTML = `<kbd></kbd><span class="card-glyph"></span><h3></h3><p></p>`;
+        card.querySelector("kbd").textContent = i + 1;
+        card.querySelector(".card-glyph").textContent = relic.glyph;
+        card.querySelector("h3").textContent = relic.name;
+        card.querySelector("p").textContent = relic.text;
+        card.addEventListener("click", () => {
+          if (game.playerAction(`choose${i + 1}`)) this.render();
+        });
+        return card;
+      }),
+    );
   }
 
   renderOverlay() {

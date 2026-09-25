@@ -8,6 +8,8 @@ const MIN_STAIRS_DISTANCE = 20;
 const SAFE_RADIUS = 6;
 const SLEEP_CHANCE = 0.35;
 const LIT_BRAZIER_CHANCE = 0.25;
+const CHASM_MIN_DEPTH = 2;
+const CHASM_SAFE_DISTANCE = 8;
 
 // Takes a random element out of the array.
 function takeRandom(rng, cells) {
@@ -50,8 +52,13 @@ export function generateLevel({ width, height, depth = 1, rng }) {
     (c) => distanceTo(c) >= SAFE_RADIUS && !(c.x === stairs.x && c.y === stairs.y),
   );
 
-  // Braziers stand in open ground (all 8 neighbours open) so they never seal a corridor.
   const features = [];
+  const chasmCells = placeChasms({ walls, region, playerStart, stairs, distanceTo, depth, rng });
+  for (const c of chasmCells) features.push({ x: c.x, y: c.y, type: "chasm" });
+  const isChasm = (c) => chasmCells.some((k) => k.x === c.x && k.y === c.y);
+  for (let i = spawnable.length - 1; i >= 0; i--) if (isChasm(spawnable[i])) spawnable.splice(i, 1);
+
+  // Braziers stand in open ground (all 8 neighbours open) so they never seal a corridor.
   const open = spawnable.filter((c) => openNeighbours(walls, c.x, c.y) === 9);
   for (let i = 0; i < brazierCount(depth) && open.length > 0; i++) {
     const { x, y } = takeRandom(rng, open);
@@ -79,4 +86,42 @@ export function generateLevel({ width, height, depth = 1, rng }) {
   }
 
   return { walls, playerStart, stairs, monsters, items, features, depth };
+}
+
+// Chasms are small blobs of pit you can jump into to drop a level. A blob is only kept
+// if every other floor tile is still reachable from the start without crossing a pit.
+function placeChasms({ walls, region, playerStart, stairs, distanceTo, depth, rng }) {
+  if (depth < CHASM_MIN_DEPTH) return [];
+  const taken = new Set();
+  const key = (c) => `${c.x},${c.y}`;
+  const isFloor = (x, y) => walls.get(x, y) === FLOOR;
+  const seeds = region.filter(
+    (c) => distanceTo(c) >= CHASM_SAFE_DISTANCE && !(c.x === stairs.x && c.y === stairs.y),
+  );
+  const blobs = rng.int(1, 3);
+
+  for (let b = 0; b < blobs && seeds.length > 0; b++) {
+    const seed = rng.pick(seeds);
+    const blob = [seed];
+    const size = rng.int(3, 7);
+    for (let tries = 0; blob.length < size && tries < 30; tries++) {
+      const from = rng.pick(blob);
+      const [dx, dy] = rng.pick([[1, 0], [-1, 0], [0, 1], [0, -1]]);
+      const c = { x: from.x + dx, y: from.y + dy };
+      if (!isFloor(c.x, c.y) || blob.some((k) => key(k) === key(c))) continue;
+      if ((c.x === stairs.x && c.y === stairs.y) || distanceTo(c) < CHASM_SAFE_DISTANCE) continue;
+      blob.push(c);
+    }
+
+    const trial = new Set([...taken, ...blob.map(key)]);
+    const passable = (x, y) => isFloor(x, y) && !trial.has(`${x},${y}`);
+    const reach = bfsDistances(walls.width, walls.height, passable, playerStart);
+    const connected = region.every((c) => trial.has(key(c)) || reach.get(c.x, c.y) >= 0);
+    if (connected) for (const c of blob) taken.add(key(c));
+  }
+
+  return [...taken].map((k) => {
+    const [x, y] = k.split(",").map(Number);
+    return { x, y };
+  });
 }

@@ -462,6 +462,43 @@ h1 span {
   text-shadow: 0 0 6px #fff, 0 0 18px var(--torch), 0 0 36px var(--ember);
 }
 
+/* Chasms: a hole in the world with a faint violet updraft. */
+#map .chasm {
+  color: #cfa8ff;
+  font-weight: 700;
+  background: radial-gradient(circle, #000 30%, #1c0f2e 100%);
+  box-shadow: inset 0 0 6px rgba(140, 90, 255, 0.5);
+  text-shadow: 0 0 6px #a070ff, 0 0 16px rgba(140, 90, 255, 0.8);
+  opacity: calc(0.55 + var(--l) * 0.45);
+}
+
+/* Monsters sensed through walls by Echolocation. */
+#map .sensed {
+  color: #9fd8ff;
+  opacity: 0.55;
+  filter: blur(0.6px);
+  text-shadow: 0 0 8px #5fb8ff;
+  animation: ping 1.6s ease-out infinite;
+}
+
+@keyframes ping {
+  0% { opacity: 0.75; }
+  100% { opacity: 0.25; }
+}
+
+/* Tiles an ogre is about to smash. */
+#map .danger {
+  color: #ffd0c8;
+  background: rgba(255, 40, 30, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 70, 50, 0.65), 0 0 12px rgba(255, 40, 30, 0.45);
+  animation: warn 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes warn {
+  from { background: rgba(255, 40, 30, 0.12); }
+  to { background: rgba(255, 40, 30, 0.38); }
+}
+
 /* Warm torch glow centred on the player, flickering. */
 .torch {
   position: absolute;
@@ -557,6 +594,131 @@ h1 span {
 @keyframes descend {
   0% { opacity: 0; transform: scale(1.12); filter: blur(6px) brightness(2); }
   100% { opacity: 1; transform: none; filter: none; }
+}
+
+/* ───────────── Relics ───────────── */
+
+#relics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 24px;
+  margin-top: -4px;
+}
+
+.relic {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: #ffe2a8;
+  background: radial-gradient(circle at 35% 30%, #3a2a1e, #140e10);
+  box-shadow: inset 0 0 0 1px #5a4232, 0 0 10px rgba(255, 170, 70, 0.25);
+  text-shadow: 0 0 8px rgba(255, 190, 90, 0.8);
+  cursor: help;
+}
+
+.relic.new {
+  animation: bestow 1.2s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+@keyframes bestow {
+  0% { transform: scale(2.2); box-shadow: 0 0 40px #ffc36a; }
+  100% { transform: scale(1); }
+}
+
+#draft {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: radial-gradient(ellipse at center, rgba(30, 18, 6, 0.8), rgba(3, 2, 4, 0.95) 75%);
+  animation: fade-in 0.6s ease both;
+}
+
+#draft[hidden] {
+  display: none;
+}
+
+.draft-kicker {
+  margin: 0;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.draft-title {
+  margin: 2px 0 20px;
+  font-family: var(--serif-sc);
+  font-weight: 400;
+  font-size: 30px;
+  color: #f6e3c4;
+  text-shadow: 0 0 20px rgba(255, 150, 60, 0.4);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.card {
+  position: relative;
+  padding: 18px 12px 14px;
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  background: linear-gradient(180deg, #221a17, #120d0e);
+  box-shadow: inset 0 1px 0 #4a3a2e, 0 0 0 1px #33271f, 0 16px 30px rgba(0, 0, 0, 0.6);
+  animation: deal 0.6s calc(var(--i) * 0.12s + 0.15s) cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: inset 0 1px 0 #6a5240, 0 0 0 1px #8a6440, 0 0 30px rgba(255, 150, 60, 0.35);
+}
+
+@keyframes deal {
+  from { opacity: 0; transform: translateY(24px) rotate(calc((var(--i) - 1) * 6deg)); }
+}
+
+.card kbd {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+
+.card-glyph {
+  display: block;
+  margin: 4px 0 8px;
+  font-family: var(--mono);
+  font-size: 30px;
+  color: #ffd99a;
+  text-shadow: 0 0 16px rgba(255, 170, 70, 0.9);
+}
+
+.card h3 {
+  margin: 0 0 6px;
+  font-family: var(--serif-sc);
+  font-weight: 400;
+  font-size: 16px;
+  color: #f1dfc2;
+}
+
+.card p {
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.35;
+  color: #b09a86;
 }
 
 /* ───────────── Death ───────────── */
@@ -679,6 +841,7 @@ h1 span {
 #log .tone-plain { color: #cdbca7; font-style: italic; }
 #log .tone-warn { color: #ffd24a; }
 #log .tone-fire { color: #ffa45a; font-style: italic; }
+#log .tone-relic { color: #ffe2a8; text-shadow: 0 0 10px rgba(255, 180, 80, 0.4); }
 
 /* ───────────── Help ───────────── */
 
@@ -704,6 +867,8 @@ h1 span {
 }
 .g-brazier { color: #ffcf6a; text-shadow: 0 0 8px var(--flame); }
 .g-oil { color: var(--oil); text-shadow: 0 0 8px var(--oil); }
+.g-chasm { color: #b58cff; }
+.g-danger { color: #ff6a5a; }
 
 kbd {
   display: inline-block;
