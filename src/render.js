@@ -1,4 +1,4 @@
-export const VIEWPORT = { width: 40, height: 40 };
+export const VIEWPORT = { width: 32, height: 32 };
 
 const GLYPHS = {
   floor: ".",
@@ -17,7 +17,8 @@ export function viewportOrigin(player, size = VIEWPORT) {
   };
 }
 
-// Returns the viewport as rows of { glyph, cls } cells.
+// Returns the viewport as rows of { glyph, cls, kind? } cells.
+// kind is the monster type for monsters and corpses.
 // cls is one of: vis (in view), dim (remembered), dark (unknown), or an entity class.
 // `isVisible(x, y)` decides what the player can currently see. It defaults to
 // everything, which is handy for tests.
@@ -33,20 +34,20 @@ export function renderViewport(level, player, { size = VIEWPORT, isVisible = () 
     rows.push(row);
   }
 
-  const draw = (x, y, glyph, cls) => {
+  const draw = (x, y, glyph, cls, kind) => {
     const vx = x - origin.x;
     const vy = y - origin.y;
-    if (vx >= 0 && vx < size.width && vy >= 0 && vy < size.height) rows[vy][vx] = { glyph, cls };
+    if (vx >= 0 && vx < size.width && vy >= 0 && vy < size.height) rows[vy][vx] = kind ? { glyph, cls, kind } : { glyph, cls };
   };
 
   // Corpses are remembered like terrain. Living monsters only show while in view.
   for (const m of level.monsters) {
     if (m.alive) continue;
-    if (isVisible(m.x, m.y)) draw(m.x, m.y, GLYPHS.corpse, "corpse");
+    if (isVisible(m.x, m.y)) draw(m.x, m.y, GLYPHS.corpse, "corpse", m.type);
     else if (level.explored.get(m.x, m.y)) draw(m.x, m.y, GLYPHS.corpse, "dim");
   }
   for (const m of level.monsters) {
-    if (m.alive && isVisible(m.x, m.y)) draw(m.x, m.y, m.glyph, "mon");
+    if (m.alive && isVisible(m.x, m.y)) draw(m.x, m.y, m.glyph, "mon", m.type);
   }
   draw(player.x, player.y, player.glyph, "player");
 
