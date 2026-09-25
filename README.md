@@ -69,7 +69,7 @@ walls, fivefold sneak attacks, and more. Hover a relic in the HUD to read it.
 When you die past depth 1, your bones stay behind on that depth with your unused potions.
 A later run can find them. Your deepest depth is remembered.
 
-**Today's cave:** open the page with `?daily`, or use the link under the map. Everyone who plays
+**Today's cave:** open the page with `?daily` or `#daily`, or use the link under the map. Everyone who plays
 on the same day gets the same cave, and every retry starts it fresh.
 
 All sound is synthesised live in the browser: footsteps, blows, a crackling torch and a drone

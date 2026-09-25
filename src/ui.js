@@ -66,11 +66,23 @@ export class DomUI {
     if (this.daily) {
       this.kicker.textContent = `today's cave · ${new Date().toISOString().slice(0, 10)}`;
       this.modeLink.textContent = "Play a random cave";
-      this.modeLink.href = "./";
     } else {
       this.modeLink.textContent = "Play today's cave";
-      this.modeLink.href = "?daily";
     }
+    this.modeLink.href = this.daily ? "#" : "#daily";
+    this.modeLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (location.search) {
+        location.assign(location.pathname + (this.daily ? "" : "#daily"));
+      } else {
+        location.hash = this.daily ? "" : "daily";
+        location.reload();
+      }
+    });
+
+    // The start card: a click or key press gives the page focus and lets sound play.
+    this.start = this.root.querySelector("#start");
+    this.start?.addEventListener("click", () => this.begin());
     this.muteButton.addEventListener("click", () => {
       this.audio?.start();
       this.audio?.toggleMute();
@@ -358,8 +370,20 @@ export class DomUI {
     this.audio?.play(game.effects);
   }
 
+  begin() {
+    if (!this.start || this.start.hidden) return false;
+    this.start.hidden = true;
+    this.audio?.start();
+    window.focus();
+    return true;
+  }
+
   bindKeyboard(target = window) {
     target.addEventListener("keydown", (event) => {
+      if (this.begin()) {
+        event.preventDefault();
+        return;
+      }
       this.audio?.start();
       if (event.key === "m" && !event.ctrlKey && !event.metaKey && !event.altKey) {
         this.audio?.toggleMute();

@@ -709,6 +709,30 @@ h1 span {
   100% { transform: scale(1); }
 }
 
+#start {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: radial-gradient(ellipse at center, rgba(40, 20, 8, 0.55), rgba(3, 2, 4, 0.92) 70%);
+}
+
+#start[hidden] {
+  display: none;
+}
+
+.start-hint {
+  margin: 0;
+  font-family: var(--serif-sc);
+  letter-spacing: 0.12em;
+  color: var(--torch);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
 #draft {
   position: absolute;
   inset: 0;

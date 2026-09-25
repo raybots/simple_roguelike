@@ -5,10 +5,11 @@ import { createRng } from "./rng.js";
 import { loadBones } from "./storage.js";
 import { DomUI } from "./ui.js";
 
-// ?seed=12345 reproduces a specific map. ?daily plays today's cave, the same for everyone.
+// ?seed=12345 reproduces a specific map. ?daily or #daily plays today's cave, the same
+// for everyone. The #daily form works where query strings don't reach the page.
 const params = new URLSearchParams(location.search);
 const seedParam = params.get("seed");
-const daily = params.has("daily");
+const daily = params.has("daily") || location.hash === "#daily";
 
 let options;
 if (daily) {
