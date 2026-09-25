@@ -28,6 +28,9 @@ export class Level {
     this.terrain = terrain ?? new Grid(this.width, this.height, null);
     // Burning tiles: 0 for none, otherwise turns of fire left.
     this.fire = new Grid(this.width, this.height, 0);
+    // Your torch when it isn't in your hand: lying at `torch`, or carried off by `torchThief`.
+    this.torch = null;
+    this.torchThief = null;
     // Dead monsters stay in this list so they can be drawn as corpses.
     this.monsters = [];
     for (const f of features) this.features.set(f.x, f.y, { type: f.type, lit: !!f.lit });
@@ -199,6 +202,14 @@ export class Level {
     creature.moveTo(x, y);
     this.creatures.set(x, y, creature);
 
+    // Thieves snatch up your torch if they find it lying about.
+    let stoleTorch = false;
+    if (creature.collects && this.isTorchAt(x, y)) {
+      this.torch = null;
+      this.torchThief = creature;
+      stoleTorch = true;
+    }
+
     // The player picks up anything. Thieving monsters grab anything but the Sun Stone.
     let item = null;
     const here = this.itemAt(x, y);
@@ -207,7 +218,7 @@ export class Level {
       this.items.set(x, y, null);
       if (!creature.isPlayer) creature.loot.push(item);
     }
-    return { ...NO_MOVE, moved: true, item };
+    return { ...NO_MOVE, moved: true, item, stoleTorch };
   }
 
   // Direct damage outside a normal bump attack. Removes monsters that die.
@@ -218,8 +229,22 @@ export class Level {
     return { damage, killed };
   }
 
+  isTorchAt(x, y) {
+    return this.torch !== null && this.torch.x === x && this.torch.y === y;
+  }
+
+  // Where your torch is when you aren't holding it.
+  looseTorchPosition() {
+    if (this.torchThief) return { x: this.torchThief.x, y: this.torchThief.y };
+    return this.torch;
+  }
+
   // A dead thief drops what it carried on and around the spot it died.
   dropLoot(creature) {
+    if (creature === this.torchThief) {
+      this.torchThief = null;
+      this.torch = { x: creature.x, y: creature.y };
+    }
     if (!creature.loot?.length) return;
     const spots = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
     for (const [dx, dy] of spots) {

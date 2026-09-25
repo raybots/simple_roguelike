@@ -541,6 +541,38 @@ h1 span {
   color: color-mix(in oklab, #d6c890 calc(var(--l) * 100%), #2a2614);
 }
 
+/* Your torch lying where you threw it. */
+#map .torch-item {
+  color: #fff0c0;
+  font-weight: 700;
+  text-shadow: 0 0 6px #ffcf6a, 0 0 16px var(--flame), 0 0 32px rgba(255, 90, 20, 0.8);
+  animation: blaze 0.5s ease-in-out infinite alternate;
+}
+
+/* Aiming a throw: the flight path in each direction, and where it would land. */
+#map .aim {
+  background: rgba(255, 180, 90, 0.12);
+}
+#map .aim-land {
+  background: rgba(255, 180, 90, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 200, 120, 0.8);
+  animation: warn 0.6s ease-in-out infinite alternate;
+}
+
+#map .flying-torch {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  margin: calc(var(--cell) * -0.5) 0 0 calc(var(--cell) * -0.5);
+  width: var(--cell);
+  height: var(--cell);
+  color: #fff3c8;
+  font-weight: 700;
+  text-shadow: 0 0 8px #ffcf6a, 0 0 20px var(--flame), 0 0 40px #ff5a10;
+  pointer-events: none;
+}
+
 /* Chasms: a hole in the world with a faint violet updraft. */
 #map .chasm {
   color: #cfa8ff;
@@ -723,6 +755,128 @@ h1 span {
 
 #start[hidden] {
   display: none;
+}
+
+.start-hint-touch {
+  display: none;
+  margin: 8px 0 0;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* ───────────── Touch controls ───────────── */
+
+#pad {
+  display: none;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#pad button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--mono);
+  color: var(--text);
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #241c1f, #141013);
+  box-shadow: inset 0 1px 0 #3d3137, 0 3px 0 #050405, 0 0 0 1px #2e2429;
+  cursor: pointer;
+}
+
+#pad button:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 1px 0 #3d3137, 0 1px 0 #050405, 0 0 0 1px #5a4232, 0 0 18px rgba(255, 150, 60, 0.35);
+}
+
+#pad button:focus-visible {
+  outline: 2px solid var(--torch);
+  outline-offset: 2px;
+}
+
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(3, 52px);
+  gap: 6px;
+  flex: none;
+}
+.dpad button {
+  font-size: 18px;
+}
+.dpad .up { grid-area: 1 / 2; }
+.dpad .left { grid-area: 2 / 1; }
+.dpad .mid { grid-area: 2 / 2; font-size: 26px; color: var(--muted); }
+.dpad .right { grid-area: 2 / 3; }
+.dpad .down { grid-area: 3 / 2; }
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  flex: 1;
+  max-width: 260px;
+}
+.actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.actions b {
+  font-size: 18px;
+  color: var(--torch);
+}
+
+.act-cancel {
+  display: none !important;
+}
+#pad.aiming .act-cancel {
+  display: flex !important;
+}
+#pad.aiming .act-throw {
+  box-shadow: inset 0 0 0 1px var(--torch), 0 0 18px rgba(255, 150, 60, 0.45);
+}
+#pad.aiming .dpad button:not(.mid) {
+  color: var(--torch);
+  box-shadow: inset 0 0 0 1px rgba(255, 180, 90, 0.7), 0 3px 0 #050405;
+}
+
+body.touch #pad {
+  display: flex;
+}
+body.touch #map-wrap {
+  touch-action: none;
+}
+body.touch .start-hint {
+  display: none;
+}
+body.touch .start-hint-touch {
+  display: block;
+}
+#relics:empty {
+  display: none;
+}
+
+body.touch #help > span:not(.aside):not(.sound) {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  #pad {
+    display: flex;
+  }
+  #map-wrap {
+    touch-action: none;
+  }
 }
 
 .start-hint {
@@ -1097,6 +1251,26 @@ kbd {
 /* ───────────── Small screens and reduced motion ───────────── */
 
 @media (max-width: 560px) {
+  #stage {
+    padding: 14px 16px 28px;
+  }
+  .masthead {
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 30px;
+  }
+  #log {
+    min-height: calc(4 * 1.45em);
+    font-size: 14px;
+  }
+  #log li:nth-last-child(n + 5) {
+    display: none;
+  }
+  .gauge .label {
+    width: 52px;
+    font-size: 11px;
+  }
   #hud {
     grid-template-columns: 1fr auto auto;
     gap: 14px;

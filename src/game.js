@@ -32,6 +32,12 @@ export const WATER_DOUSE_CHANCE = 0.25;
 export const SMOTHERED_RADIUS = 1;
 // The Sun Stone shines, and it's the one light the Lightless can't eat.
 export const SUN_RADIUS = 4;
+export const THROW_RANGE = 6;
+export const THROW_DAMAGE = 2;
+// Idle monsters this close that see your torch land go to look at it.
+export const LURE_RANGE = 10;
+// A torch lying on the ground or in a thief's hands burns lower than one held high.
+export const LOOSE_TORCH_RADIUS = 4;
 const NOISE_RADIUS = 6;
 const MAX_MESSAGES = 100;
 
@@ -102,9 +108,17 @@ export class Game {
   get torchRadius() {
     const { player } = this;
     if (!player.torchBurning) return 0;
+    const at = this.torchPosition;
     let radius = player.torchRadius + (BIOMES[this.level.biome]?.torch ?? 0);
-    if (this.inDarkAura(player.x, player.y)) radius = SMOTHERED_RADIUS;
+    if (!player.hasTorch) radius = Math.min(radius, LOOSE_TORCH_RADIUS);
+    if (at && this.inDarkAura(at.x, at.y)) radius = SMOTHERED_RADIUS;
     return radius;
+  }
+
+  // Where your torch is: in your hand, lying where you threw it, or with a thief.
+  get torchPosition() {
+    const { player } = this;
+    return player.hasTorch ? { x: player.x, y: player.y } : this.level.looseTorchPosition();
   }
 
   // A previous adventurer's remains lie on the depth where they died.
@@ -153,7 +167,8 @@ export class Game {
   lightSources() {
     const { player, level } = this;
     const sources = [];
-    if (player.torchBurning) sources.push({ x: player.x, y: player.y, radius: this.torchRadius });
+    const torch = this.torchPosition;
+    if (player.torchBurning && torch) sources.push({ ...torch, radius: this.torchRadius });
     for (const b of level.braziers()) if (b.lit) sources.push({ x: b.x, y: b.y, radius: BRAZIER_RADIUS });
     for (const m of level.monsters) if (m.alive && m.torch) sources.push({ x: m.x, y: m.y, radius: m.torch });
     for (const f of level.burningTiles()) sources.push({ x: f.x, y: f.y, radius: FIRE_RADIUS });
@@ -184,7 +199,7 @@ export class Game {
       }
     }
 
-    const ownRadius = player.torchBurning ? this.torchRadius : DARK_SIGHT;
+    const ownRadius = player.carryingLight ? this.torchRadius : DARK_SIGHT;
     this.visible = computeFov(level.width, level.height, isOpaque, player.x, player.y, ownRadius);
     for (const i of computeFov(level.width, level.height, isOpaque, player.x, player.y, SIGHT_RANGE)) {
       if (this.light.has(i)) this.visible.add(i);
@@ -231,6 +246,12 @@ export class Game {
       this.effect("restart");
       return true;
     }
+    if (this.state === "aiming") {
+      this.state = "playing";
+      if (action in DIRECTIONS) return this.throwTorch(...DIRECTIONS[action]);
+      this.log("You keep hold of your torch.");
+      return true;
+    }
     if (this.state === "draft") {
       const pick = { choose1: 0, choose2: 1, choose3: 2 }[action];
       if (pick === undefined || pick >= this.draft.length) return false;
@@ -243,6 +264,7 @@ export class Game {
     if (action === "quaff") return this.quaff();
     if (action === "torch") return this.toggleTorch();
     if (action === "ignite") return this.ignite();
+    if (action === "throw") return this.aim();
     return false;
   }
 
@@ -252,13 +274,20 @@ export class Game {
     // Bumping a wall is free.
     if (this.level.isWall(x, y)) return false;
     if (this.level.featureAt(x, y)?.type === "brazier") return this.useBrazier(x, y);
-    if (this.level.isChasm(x, y) && !this.level.creatureAt(x, y)) return this.fall();
+    if (this.level.isChasm(x, y) && !this.level.creatureAt(x, y)) {
+      if (!this.player.hasTorch) {
+        this.log("You won't jump without your torch.");
+        return true;
+      }
+      return this.fall();
+    }
 
     const target = this.level.creatureAt(x, y);
     const sneak = target && target.unaware;
     const multiplier = sneak ? (this.player.hasRelic("shadowstep") ? SHADOWSTEP_MULTIPLIER : SNEAK_MULTIPLIER) : 1;
     const result = this.level.moveCreature(this.player, x, y, { multiplier });
     if (result.moved) this.effect("step");
+    if (result.moved && this.level.isTorchAt(x, y)) this.pickUpTorch();
     if (result.moved && this.level.terrainAt(x, y) === "water") this.wade();
     if (result.target) this.reportAttack(result, sneak);
     if (result.item) this.pickUp(result.item);
@@ -310,7 +339,7 @@ export class Game {
       this.log("The brazier burns steadily.");
       return true;
     }
-    if (!this.player.torchBurning || this.player.fuel < BRAZIER_COST) {
+    if (!this.player.carryingLight || this.player.fuel < BRAZIER_COST) {
       this.log("You need a burning torch to light the brazier.");
       return true;
     }
@@ -335,7 +364,7 @@ export class Game {
       this.waded = true;
       this.log("You wade through black water. It slows you down.");
     }
-    if (this.player.torchBurning && this.rng.chance(WATER_DOUSE_CHANCE)) {
+    if (this.player.carryingLight && this.rng.chance(WATER_DOUSE_CHANCE)) {
       this.player.torchLit = false;
       this.log("Water splashes over your torch and puts it out! Press t to relight it.");
       this.effect("torch", { lit: false });
@@ -345,7 +374,7 @@ export class Game {
   // Sets the grass next to you alight with your torch.
   ignite() {
     const { player, level } = this;
-    if (!player.torchBurning || player.fuel < IGNITE_COST) {
+    if (!player.carryingLight || player.fuel < IGNITE_COST) {
       this.log("You need a burning torch to start a fire.");
       return true;
     }
@@ -367,8 +396,92 @@ export class Game {
     this.effect("win");
   }
 
+  // Enters aiming: the next direction throws the torch.
+  aim() {
+    const { player } = this;
+    if (!player.hasTorch) {
+      this.log("Your torch is out of reach.");
+      return true;
+    }
+    if (!player.torchBurning) {
+      this.log("Light your torch before you throw it.");
+      return true;
+    }
+    this.state = "aiming";
+    this.log("Throw your torch which way?");
+    return true;
+  }
+
+  // The tiles a torch thrown this way would fly over, ending where it lands.
+  // It stops at walls and braziers, and at the first creature it hits.
+  throwPath(dx, dy) {
+    const { level, player } = this;
+    const path = [];
+    for (let i = 1; i <= THROW_RANGE; i++) {
+      const x = player.x + dx * i;
+      const y = player.y + dy * i;
+      if (level.isBlocked(x, y)) break;
+      path.push({ x, y });
+      if (level.creatureAt(x, y)) break;
+    }
+    // It can't come to rest over a chasm; it drops short instead.
+    while (path.length > 0 && level.isChasm(path.at(-1).x, path.at(-1).y)) path.pop();
+    return path;
+  }
+
+  throwTorch(dx, dy) {
+    const { level, player } = this;
+    const path = this.throwPath(dx, dy);
+    if (path.length === 0) {
+      this.log("There's no room to throw it.");
+      return true;
+    }
+    const land = path.at(-1);
+    player.hasTorch = false;
+    level.torch = { x: land.x, y: land.y };
+    this.effect("throw", { path });
+
+    const target = level.creatureAt(land.x, land.y);
+    if (target) {
+      const { damage, killed } = level.strikeCreature(player, target, THROW_DAMAGE);
+      this.log(killed ? `Your torch strikes the ${target.name} dead!` : `Your torch cracks into the ${target.name}.`);
+      this.effect("hit", { x: land.x, y: land.y, amount: damage, killed, by: "player" });
+      if (!killed) target.state = "hunting";
+    } else {
+      this.log("Your torch tumbles through the air and lands, burning.");
+    }
+    if (level.ignite(land.x, land.y)) this.log("The grass catches!");
+    if (level.terrainAt(land.x, land.y) === "water") {
+      player.torchLit = false;
+      this.log("Your torch hisses out in the water.");
+    }
+    this.lure(land);
+    return this.endTurn();
+  }
+
+  // Idle monsters that see the torch land wander over to look.
+  lure(spot) {
+    for (const m of this.level.monsters) {
+      if (!m.alive || m.state !== "idle") continue;
+      if (Math.hypot(m.x - spot.x, m.y - spot.y) > LURE_RANGE || !m.hasLineOfSightTo(this.level, spot)) continue;
+      m.investigate = { x: spot.x, y: spot.y };
+      if (this.isVisible(m.x, m.y)) this.log(`The ${m.name} turns toward the light.`);
+    }
+  }
+
+  pickUpTorch() {
+    this.level.torch = null;
+    this.player.hasTorch = true;
+    this.log(this.player.torchBurning ? "You take up your torch again." : "You pick up your torch. Press t to relight it.");
+    this.effect("pickup", { kind: "torch" });
+  }
+
   toggleTorch() {
     const { player } = this;
+    if (!player.hasTorch) {
+      this.log("Your torch is out of reach.");
+      return true;
+    }
     if (player.torchLit) {
       player.torchLit = false;
       this.log("You douse your torch. The dark hides you.");
@@ -387,6 +500,10 @@ export class Game {
   descend() {
     if (!this.level.isStairs(this.player.x, this.player.y)) {
       this.log("There are no stairs here.");
+      return true;
+    }
+    if (!this.player.hasTorch) {
+      this.log("You won't go deeper without your torch.");
       return true;
     }
     this.goDeeper();
@@ -499,7 +616,7 @@ export class Game {
       }
     }
     if (snuffed) level.updateStaticLight();
-    const smothered = this.inDarkAura(player.x, player.y) && player.torchBurning;
+    const smothered = this.inDarkAura(player.x, player.y) && player.carryingLight;
     if (smothered && !this.smothered) this.log("Your torch shrinks to an ember. Something is drinking the light.");
     this.smothered = smothered;
   }
@@ -523,6 +640,8 @@ export class Game {
       } else if (event.noticed && seen) {
         this.log(`The ${event.actor.name} notices you.`);
         this.effect("notice", { x: event.actor.x, y: event.actor.y });
+      } else if (event.stoleTorch) {
+        this.log(`The ${event.actor.name} snatches up your torch! Kill it to get it back.`);
       } else if (event.item && seen) {
         this.log(`The ${event.actor.name} snatches up the ${event.item.type}!`);
       } else if (event.fled && seen && !event.actor.fledBefore) {

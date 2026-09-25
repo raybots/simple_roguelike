@@ -164,6 +164,10 @@ export function createAudio() {
       tone({ freq: 220, to: 55, type: "sawtooth", duration: 2.5, gain: 0.15, attack: 0.02 });
       tone({ freq: 110, to: 36, type: "sine", duration: 3, gain: 0.25 });
     },
+    throw: () => {
+      noise({ duration: 0.45, gain: 0.25, filter: 800, to: 2600, q: 1.5, attack: 0.02 });
+      tone({ freq: 300, to: 120, type: "triangle", duration: 0.4, gain: 0.06, at: 0.3 });
+    },
     restart: () => tone({ freq: 196, to: 392, type: "sine", duration: 0.8, gain: 0.1, attack: 0.2 }),
     ignite: () => {
       noise({ duration: 1.2, gain: 0.3, filter: 300, to: 4000, q: 0.5, attack: 0.05 });

@@ -18,6 +18,8 @@ export const KEY_ACTIONS = {
   q: "quaff",
   t: "torch",
   f: "ignite",
+  r: "throw",
+  Escape: "cancel",
   Enter: "restart",
   1: "choose1",
   2: "choose2",

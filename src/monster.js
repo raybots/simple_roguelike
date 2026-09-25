@@ -55,6 +55,8 @@ export class Monster extends Creature {
     this.collects = collects;
     this.eatsLight = eatsLight;
     this.loot = [];
+    // A spot an idle monster wanders over to look at, like a torch landing nearby.
+    this.investigate = null;
     // Tiles this monster will smash on its next turn, or null.
     this.windup = null;
     this.state = state;
@@ -169,6 +171,16 @@ export class Monster extends Creature {
       if (this.collects) {
         const item = this.wantedItem(level);
         if (item) return this.stepToward(level, item, true);
+      }
+      if (this.investigate) {
+        const { x, y } = this.investigate;
+        if (this.x === x && this.y === y) {
+          this.investigate = null;
+          return null;
+        }
+        const result = this.stepToward(level, this.investigate, true);
+        if (!result) this.investigate = null;
+        return result;
       }
       return null;
     }

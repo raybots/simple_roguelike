@@ -11,6 +11,13 @@ light shrinks as the fuel runs low. You can also see anything lit by a brazier o
 torch, and light around corners glows through the dark. Tiles you've explored stay faintly
 remembered.
 
+You can throw your torch up to 6 tiles. It hits the first monster in its path, sets grass alight,
+and keeps burning where it lands, lower than in your hand. Idle monsters that see it land go to
+look, so it makes a good lure while you slip past in the dark. Walk over it to pick it up. Goblins
+will steal it if they find it, and you can't take the stairs without it.
+
+On a phone, swipe on the map or use the on-screen pad to move, with buttons for every action.
+
 Light cuts both ways. Monsters notice a lit player from far away, but in the dark they only
 notice you up close. Unaware monsters take triple damage, so douse your torch and creep up.
 
@@ -29,6 +36,7 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | Pick a relic | `1` `2` `3` |
 | Sound on or off | `m` |
 | Set the grass next to you alight | `f` |
+| Throw your torch | `r`, then a direction (`Esc` cancels) |
 | Play again after dying | Enter |
 
 ## What's in the caves
