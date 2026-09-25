@@ -19,8 +19,8 @@ export class Creature {
     this.y = y;
   }
 
-  attack(target) {
-    const damage = this.damage;
+  attack(target, multiplier = 1) {
+    const damage = this.damage * multiplier;
     target.hp -= damage;
     return { damage, killed: !target.alive };
   }

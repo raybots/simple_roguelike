@@ -1,6 +1,6 @@
 // Pure presentation helpers for the torchlit theme. No DOM access, so they're testable.
 
-import { FOV_RADIUS } from "./game.js";
+import { lightLevel as falloff } from "./light.js";
 
 // How the map's ASCII glyphs are drawn on screen.
 const DISPLAY_GLYPHS = { ".": "·" };
@@ -11,9 +11,8 @@ export function displayGlyph(glyph) {
 
 // Torchlight intensity for a cell at (dx, dy) from the player, from 0 to 1.
 // Bright near the player, falling off smoothly to a faint glow at the edge of sight.
-export function lightLevel(dx, dy, radius = FOV_RADIUS) {
-  const t = Math.min(1, Math.hypot(dx, dy) / (radius + 1));
-  return Math.round((0.18 + 0.82 * (1 - t) ** 1.6) * 100) / 100;
+export function lightLevel(dx, dy, radius = 8) {
+  return falloff(dx, dy, radius);
 }
 
 // The CSS class for a rendered map cell.
@@ -24,12 +23,18 @@ export function cellClass(cell) {
   return cell.cls;
 }
 
+// Small marker drawn over a monster to show what it knows: z asleep, ? alert, ! hunting.
+export const STATE_MARKERS = { asleep: "z", alert: "?", hunting: "!" };
+
 // Colour-codes log messages by what happened.
 export function messageTone(text) {
   if (/ you for /.test(text) || /^You die/.test(text)) return "hurt";
   if (/^You kill/.test(text)) return "kill";
   if (/^You hit/.test(text)) return "hit";
   if (/potion/.test(text) && !/no potions/.test(text)) return "potion";
+  if (/unaware/.test(text)) return "kill";
+  if (/notices you/.test(text)) return "warn";
+  if (/torch|oil|brazier|[Dd]arkness/.test(text)) return "fire";
   if (/descend|stairs down/.test(text)) return "depth";
   return "plain";
 }

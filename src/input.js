@@ -16,6 +16,7 @@ export const KEY_ACTIONS = {
   " ": "wait",
   ">": "descend",
   q: "quaff",
+  t: "torch",
   Enter: "restart",
 };
 

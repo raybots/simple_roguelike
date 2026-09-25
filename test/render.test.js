@@ -29,7 +29,7 @@ test("out of view tiles are dark unless explored, and hide monsters", () => {
   level.explored.set(1, 0, true);
   level.explored.set(2, 0, true);
   const isVisible = (x) => x === 0;
-  const rows = renderViewport(level, player, { size: { width: 9, height: 1 }, isVisible });
+  const rows = renderViewport(level, player, { size: { width: 9, height: 1 }, isVisible, lightAt: () => 0 });
   assert.equal(rowsToText(rows)[0], "    @..  ");
   assert.equal(rows[0][5].cls, "dim");
   assert.equal(rows[0][7].cls, "dark");
@@ -39,7 +39,7 @@ test("the status line and message log", () => {
   const { game, player } = gameFromStrings(["@."]);
   player.hp = 12;
   player.potions = 3;
-  assert.equal(renderStatus(game), "HP 12/30   Potions 3   Depth 1   Turn 0");
+  assert.equal(renderStatus(game), "HP 12/30   Torch 300   Potions 3   Depth 1   Turn 0");
   for (let i = 0; i < 8; i++) game.log(`m${i}`);
   assert.deepEqual(recentMessages(game, 3), ["m5", "m6", "m7"]);
 });

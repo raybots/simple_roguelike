@@ -7,6 +7,8 @@ import { Monster } from "./monster.js";
 // - speed: actions per turn (0.5 = every other turn)
 // - erratic: chance per turn of a random step instead of chasing
 // - remembers: keeps chasing after losing sight of the player
+// - torch: carries a light of this radius
+// - fearsLight: won't enter brazier light
 export const MONSTER_TYPES = {
   rat: { name: "rat", glyph: "r", hp: 2, damage: 1, verb: "bites", minDepth: 1, weight: 10, range: 20 },
   bat: {
@@ -20,8 +22,9 @@ export const MONSTER_TYPES = {
     range: 20,
     erratic: 0.5,
     remembers: false,
+    fearsLight: true,
   },
-  goblin: { name: "goblin", glyph: "g", hp: 6, damage: 2, verb: "hits", minDepth: 2, weight: 6, range: 12 },
+  goblin: { name: "goblin", glyph: "g", hp: 6, damage: 2, verb: "hits", minDepth: 2, weight: 6, range: 12, torch: 3 },
   ogre: { name: "ogre", glyph: "O", hp: 14, damage: 4, verb: "smashes", minDepth: 4, weight: 3, range: 20, speed: 0.5 },
 };
 
@@ -41,11 +44,11 @@ export function pickMonsterType(rng, depth) {
 }
 
 // Deeper monsters get one extra hit point every three levels.
-export function createMonster(type, x, y, depth = 1) {
+export function createMonster(type, x, y, depth = 1, state = "idle") {
   const def = MONSTER_TYPES[type];
   if (!def) throw new Error(`Unknown monster type: ${type}`);
   const bonusHp = Math.floor((depth - 1) / 3);
-  return new Monster({ ...def, type, x, y, hp: def.hp + bonusHp });
+  return new Monster({ ...def, type, x, y, state, hp: def.hp + bonusHp });
 }
 
 export function monsterCount(depth, openCells) {
@@ -54,4 +57,12 @@ export function monsterCount(depth, openCells) {
 
 export function potionCount(depth) {
   return 2 + Math.floor(depth / 3);
+}
+
+export function oilCount(rng) {
+  return rng.chance(0.35) ? 2 : 1;
+}
+
+export function brazierCount(depth) {
+  return depth >= 4 ? 3 : 2;
 }

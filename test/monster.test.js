@@ -9,6 +9,9 @@ const fixedRng = (answer) => ({ ...createRng(1), chance: () => answer });
 test("a monster with line of sight steps toward the player", () => {
   const { level, player, monsters } = levelFromStrings(["r.....@"]);
   monsters[0].takeTurn(level, player);
+  assert.equal(monsters[0].state, "alert", "first it notices");
+  assert.deepEqual([monsters[0].x, monsters[0].y], [0, 0]);
+  monsters[0].takeTurn(level, player);
   assert.deepEqual([monsters[0].x, monsters[0].y], [1, 0]);
   assert.equal(monsters[0].seenPlayer, true);
 });
@@ -28,6 +31,7 @@ test("once it has seen the player it chases without line of sight", () => {
 
 test("a monster next to the player attacks", () => {
   const { level, player, monsters } = levelFromStrings(["r@"]);
+  monsters[0].seenPlayer = true;
   const result = monsters[0].takeTurn(level, player);
   assert.equal(result.target, player);
   assert.equal(player.hp, player.maxHp - 1);
@@ -53,6 +57,7 @@ test("a monster out of range that has not seen the player ignores them", () => {
 test("an ogre acts every other turn", () => {
   const { level, player, monsters } = levelFromStrings(["O.....@"]);
   const ogre = monsters[0];
+  ogre.seenPlayer = true;
   const xs = [];
   for (let i = 0; i < 4; i++) {
     ogre.takeTurn(level, player);

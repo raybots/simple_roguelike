@@ -4,10 +4,12 @@ const GLYPHS = {
   floor: ".",
   wall: "#",
   stairs: ">",
-  potion: "!",
   corpse: "x",
   unknown: " ",
+  brazier: "Ω",
 };
+
+export const ITEM_GLYPHS = { potion: "!", oil: "¤" };
 
 // Top-left map coordinate of a viewport centred on the player.
 export function viewportOrigin(player, size = VIEWPORT) {
@@ -17,52 +19,62 @@ export function viewportOrigin(player, size = VIEWPORT) {
   };
 }
 
-// Returns the viewport as rows of { glyph, cls, kind? } cells.
-// kind is the monster type for monsters and corpses.
-// cls is one of: vis (in view), dim (remembered), dark (unknown), or an entity class.
-// `isVisible(x, y)` decides what the player can currently see. It defaults to
-// everything, which is handy for tests.
-export function renderViewport(level, player, { size = VIEWPORT, isVisible = () => true } = {}) {
+// Returns the viewport as rows of { glyph, cls, kind?, state? } cells.
+// cls is one of: vis (in view), dim (remembered), dark (unknown), glow (light seen
+// from out of sight), or an entity class. kind is the monster type or item type.
+// `isVisible(x, y)` decides what the player can currently see; `lightAt(x, y)` how lit
+// a tile is. Both default to "everything, fully lit", which is handy for tests.
+export function renderViewport(level, player, { size = VIEWPORT, isVisible = () => true, lightAt = () => 1 } = {}) {
   const origin = viewportOrigin(player, size);
   const rows = [];
 
   for (let vy = 0; vy < size.height; vy++) {
     const row = [];
     for (let vx = 0; vx < size.width; vx++) {
-      row.push(terrainCell(level, origin.x + vx, origin.y + vy, isVisible));
+      row.push(terrainCell(level, origin.x + vx, origin.y + vy, isVisible, lightAt));
     }
     rows.push(row);
   }
 
-  const draw = (x, y, glyph, cls, kind) => {
+  const draw = (x, y, cell) => {
     const vx = x - origin.x;
     const vy = y - origin.y;
-    if (vx >= 0 && vx < size.width && vy >= 0 && vy < size.height) rows[vy][vx] = kind ? { glyph, cls, kind } : { glyph, cls };
+    if (vx >= 0 && vx < size.width && vy >= 0 && vy < size.height) rows[vy][vx] = cell;
   };
 
   // Corpses are remembered like terrain. Living monsters only show while in view.
   for (const m of level.monsters) {
     if (m.alive) continue;
-    if (isVisible(m.x, m.y)) draw(m.x, m.y, GLYPHS.corpse, "corpse", m.type);
-    else if (level.explored.get(m.x, m.y)) draw(m.x, m.y, GLYPHS.corpse, "dim");
+    if (isVisible(m.x, m.y)) draw(m.x, m.y, { glyph: GLYPHS.corpse, cls: "corpse", kind: m.type });
+    else if (level.explored.get(m.x, m.y)) draw(m.x, m.y, { glyph: GLYPHS.corpse, cls: "dim", kind: m.type });
   }
   for (const m of level.monsters) {
-    if (m.alive && isVisible(m.x, m.y)) draw(m.x, m.y, m.glyph, "mon", m.type);
+    if (m.alive && isVisible(m.x, m.y)) draw(m.x, m.y, { glyph: m.glyph, cls: "mon", kind: m.type, state: m.state });
   }
-  draw(player.x, player.y, player.glyph, "player");
+  draw(player.x, player.y, { glyph: player.glyph, cls: "player" });
 
   return rows;
 }
 
-function terrainCell(level, x, y, isVisible) {
-  if (!level.walls.contains(x, y)) return { glyph: GLYPHS.unknown, cls: "dark" };
-  const visible = isVisible(x, y);
-  if (!visible && !level.explored.get(x, y)) return { glyph: GLYPHS.unknown, cls: "dark" };
+function terrainGlyph(level, x, y) {
+  if (level.isWall(x, y)) return { glyph: GLYPHS.wall, cls: "vis" };
+  const feature = level.featureAt(x, y);
+  if (feature?.type === "brazier") return { glyph: GLYPHS.brazier, cls: feature.lit ? "brazier-lit" : "brazier" };
+  if (level.isStairs(x, y)) return { glyph: GLYPHS.stairs, cls: "stairs" };
+  const item = level.itemAt(x, y);
+  if (item) return { glyph: ITEM_GLYPHS[item.type] ?? "?", cls: "item", kind: item.type };
+  return { glyph: GLYPHS.floor, cls: "vis" };
+}
 
-  if (level.isWall(x, y)) return { glyph: GLYPHS.wall, cls: visible ? "vis" : "dim" };
-  if (level.isStairs(x, y)) return { glyph: GLYPHS.stairs, cls: visible ? "stairs" : "dim" };
-  if (level.itemAt(x, y)) return { glyph: GLYPHS.potion, cls: visible ? "item" : "dim" };
-  return { glyph: GLYPHS.floor, cls: visible ? "vis" : "dim" };
+function terrainCell(level, x, y, isVisible, lightAt) {
+  if (!level.walls.contains(x, y)) return { glyph: GLYPHS.unknown, cls: "dark" };
+  if (isVisible(x, y)) return terrainGlyph(level, x, y);
+
+  const explored = level.explored.get(x, y);
+  // Light you can't see directly still shows as a glow, like torchlight around a corner.
+  if (lightAt(x, y) > 0) return { glyph: explored ? terrainGlyph(level, x, y).glyph : GLYPHS.unknown, cls: "glow" };
+  if (!explored) return { glyph: GLYPHS.unknown, cls: "dark" };
+  return { glyph: terrainGlyph(level, x, y).glyph, cls: "dim" };
 }
 
 export function rowsToText(rows) {
@@ -71,7 +83,7 @@ export function rowsToText(rows) {
 
 export function renderStatus(game) {
   const { player } = game;
-  return `HP ${Math.max(0, player.hp)}/${player.maxHp}   Potions ${player.potions}   Depth ${game.depth}   Turn ${game.turn}`;
+  return `HP ${Math.max(0, player.hp)}/${player.maxHp}   Torch ${player.fuel}   Potions ${player.potions}   Depth ${game.depth}   Turn ${game.turn}`;
 }
 
 export function recentMessages(game, count = 5) {

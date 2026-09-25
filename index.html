@@ -25,10 +25,17 @@
 
       <section id="game">
         <div id="hud">
-          <div class="hp">
-            <span class="label">Vitality</span>
-            <div class="bar"><div id="hp-fill"></div></div>
-            <span id="hp-text" class="value">30/30</span>
+          <div class="gauges">
+            <div class="gauge hp">
+              <span class="label">Vitality</span>
+              <div class="bar"><div id="hp-fill"></div></div>
+              <span id="hp-text" class="value">30/30</span>
+            </div>
+            <div class="gauge fuel">
+              <span class="label">Torch</span>
+              <div class="bar"><div id="fuel-fill"></div></div>
+              <span id="fuel-text" class="value">r8</span>
+            </div>
           </div>
           <div class="stat vials"><span class="label">Vials</span><span id="potions" class="value">0</span></div>
           <div class="stat depth"><span class="label">Depth</span><span id="depth" class="value big">1</span></div>
@@ -57,7 +64,11 @@
           <span><kbd>.</kbd> wait</span>
           <span><kbd>&gt;</kbd> descend</span>
           <span><kbd>q</kbd> drink</span>
-          <span class="aside">also <kbd>wasd</kbd> <kbd>hjkl</kbd> · walk into foes to strike</span>
+          <span><kbd>t</kbd> douse torch</span>
+          <span class="aside">
+            also <kbd>wasd</kbd> <kbd>hjkl</kbd> · walk into foes to strike · unaware foes take triple damage ·
+            bump a brazier <b class="g-brazier">Ω</b> to light it · oil <b class="g-oil">¤</b> feeds your torch
+          </span>
         </footer>
       </section>
     </main>
