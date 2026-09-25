@@ -1,16 +1,29 @@
+import { createAudio } from "./audio.js";
+import { dailySeed, todayKey } from "./daily.js";
 import { Game } from "./game.js";
 import { createRng } from "./rng.js";
+import { loadBones } from "./storage.js";
 import { DomUI } from "./ui.js";
 
-// ?seed=12345 reproduces a specific map.
-const seedParam = new URLSearchParams(location.search).get("seed");
-const seed = seedParam && /^\d+$/.test(seedParam) ? Number(seedParam) >>> 0 : undefined;
-const rng = createRng(seed);
-console.log(`seed: ${rng.seed}`);
+// ?seed=12345 reproduces a specific map. ?daily plays today's cave, the same for everyone.
+const params = new URLSearchParams(location.search);
+const seedParam = params.get("seed");
+const daily = params.has("daily");
+
+let options;
+if (daily) {
+  options = { seed: dailySeed(), mode: `daily-${todayKey()}` };
+} else if (seedParam && /^\d+$/.test(seedParam)) {
+  options = { rng: createRng(Number(seedParam) >>> 0), mode: "seeded" };
+} else {
+  options = { rng: createRng(), mode: "random" };
+}
+console.log(`seed: ${options.seed ?? options.rng.seed}`);
 
 // Exported so the game can be inspected from the browser console:
 //   const { game } = await import("./src/main.js")
-export const game = new Game({ rng });
-const ui = new DomUI(game, document.getElementById("stage"));
+// Bones only turn up in random runs, so the daily cave is the same for everyone.
+export const game = new Game({ ...options, bones: options.mode === "random" ? loadBones() : null });
+const ui = new DomUI(game, document.getElementById("stage"), { audio: createAudio(), mode: options.mode, daily });
 ui.bindKeyboard();
 ui.render();

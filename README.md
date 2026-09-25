@@ -26,6 +26,7 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | Drink a potion | `q` |
 | Douse or relight your torch | `t` |
 | Pick a relic | `1` `2` `3` |
+| Sound on or off | `m` |
 | Play again after dying | Enter |
 
 ## What's in the caves
@@ -49,6 +50,15 @@ Small marks over a monster show what it knows: `z` asleep, `?` has just noticed 
 Each time you go deeper, by stairs or by chasm, you pick one of three relics. Relics bend the
 rules: kills that heal you, a torch that never shrinks below radius 5, sensing monsters through
 walls, fivefold sneak attacks, and more. Hover a relic in the HUD to read it.
+
+When you die past depth 1, your bones stay behind on that depth with your unused potions.
+A later run can find them. Your deepest depth is remembered.
+
+**Today's cave:** open the page with `?daily`, or use the link under the map. Everyone who plays
+on the same day gets the same cave, and every retry starts it fresh.
+
+All sound is synthesised live in the browser: footsteps, blows, a crackling torch and a drone
+that sinks as you go deeper.
 
 Each level has more monsters than the last, and they gain HP every two levels and damage every six.
 The numbers live in `src/bestiary.js` and `src/player.js` if you want to rebalance things.

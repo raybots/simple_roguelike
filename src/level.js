@@ -24,7 +24,7 @@ export class Level {
     for (const spec of monsters) {
       this.addMonster(createMonster(spec.type, spec.x, spec.y, depth, spec.state ?? "idle"));
     }
-    for (const item of items) this.items.set(item.x, item.y, { type: item.type });
+    for (const { x, y, ...item } of items) this.items.set(x, y, item);
     this.updateStaticLight();
   }
 

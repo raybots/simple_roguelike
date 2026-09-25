@@ -1,10 +1,13 @@
 import { actionForKey } from "./input.js";
 import { recentMessages, renderStatus, renderViewport, VIEWPORT, viewportOrigin } from "./render.js";
 import { RELICS } from "./relics.js";
+import { bestDepth, clearBones, recordDepth, saveBones } from "./storage.js";
 import { cellClass, displayGlyph, epitaph, messageTone, STATE_MARKERS } from "./theme.js";
 
 // Visible tiles never go fully black, even outside any light.
 const MIN_VISIBLE_LIGHT = 0.14;
+const SPARK_GLYPHS = ["*", "'", "`", ",", ".", "+", "·"];
+const IMPACT_DAMAGE = 4;
 
 const LOG_LINES = 6;
 
@@ -17,9 +20,18 @@ function replay(element, className) {
 
 // The only module that touches the DOM, apart from the entry point.
 export class DomUI {
-  constructor(game, root) {
+  constructor(game, root, { audio = null, mode = "random", daily = false } = {}) {
     this.game = game;
     this.root = root;
+    this.audio = audio;
+    this.mode = mode;
+    this.daily = daily;
+    this.best = bestDepth(mode);
+    this.newBest = false;
+    this.bestEl = root.querySelector("#best");
+    this.muteButton = root.querySelector("#mute");
+    this.kicker = root.querySelector(".kicker");
+    this.modeLink = root.querySelector("#mode-link");
     this.status = root.querySelector("#status");
     this.map = root.querySelector("#map");
     this.mapWrap = root.querySelector("#map-wrap");
@@ -38,7 +50,43 @@ export class DomUI {
     this.relicCount = -1;
 
     this.buildGrid();
-    this.last = { hp: game.player.hp, depth: game.depth, messageCount: game.messageCount, state: game.state };
+    this.last = {
+      hp: game.player.hp,
+      depth: game.depth,
+      messageCount: game.messageCount,
+      state: game.state,
+      x: game.player.x,
+      y: game.player.y,
+    };
+    this.setupChrome();
+  }
+
+  // Page furniture that depends on the mode: the kicker line, the mode link, mute button.
+  setupChrome() {
+    if (this.daily) {
+      this.kicker.textContent = `today's cave · ${new Date().toISOString().slice(0, 10)}`;
+      this.modeLink.textContent = "Play a random cave";
+      this.modeLink.href = "./";
+    } else {
+      this.modeLink.textContent = "Play today's cave";
+      this.modeLink.href = "?daily";
+    }
+    this.muteButton.addEventListener("click", () => {
+      this.audio?.start();
+      this.audio?.toggleMute();
+      this.renderMute();
+    });
+    this.renderMute();
+  }
+
+  renderMute() {
+    const muted = this.audio?.muted ?? true;
+    this.muteButton.textContent = muted ? "sound off" : "sound on";
+    this.muteButton.setAttribute("aria-pressed", String(!muted));
+  }
+
+  get cellSize() {
+    return this.map.offsetWidth / VIEWPORT.width;
   }
 
   // One span per map cell, created once and updated in place on every render.
@@ -124,6 +172,7 @@ export class DomUI {
     this.potions.parentElement.classList.toggle("empty", player.potions === 0);
     this.depth.textContent = depth;
     this.turn.textContent = turn;
+    this.bestEl.textContent = Math.max(this.best, depth);
   }
 
   renderLog() {
@@ -144,6 +193,10 @@ export class DomUI {
 
   renderEffects() {
     const { game, last } = this;
+    const moved = game.depth === last.depth && Math.abs(game.player.x - last.x) + Math.abs(game.player.y - last.y) === 1;
+    if (moved) this.glide(game.player.x - last.x, game.player.y - last.y);
+    last.x = game.player.x;
+    last.y = game.player.y;
     if (game.depth !== last.depth) replay(this.mapWrap, "descend");
     else if (game.player.hp < last.hp) replay(this.mapWrap, "hurt");
     else if (game.player.hp > last.hp && game.state === last.state) replay(this.mapWrap, "heal");
@@ -189,9 +242,7 @@ export class DomUI {
         card.querySelector(".card-glyph").textContent = relic.glyph;
         card.querySelector("h3").textContent = relic.name;
         card.querySelector("p").textContent = relic.text;
-        card.addEventListener("click", () => {
-          if (game.playerAction(`choose${i + 1}`)) this.render();
-        });
+        card.addEventListener("click", () => this.act(`choose${i + 1}`));
         return card;
       }),
     );
@@ -206,14 +257,109 @@ export class DomUI {
     const { title, line } = epitaph(this.game);
     this.overlay.querySelector(".epitaph-title").textContent = title;
     this.overlay.querySelector(".epitaph-line").textContent = line;
+    this.overlay.querySelector(".epitaph-best").textContent = this.newBest
+      ? `A new record: depth ${this.game.depth}.`
+      : `Deepest so far: depth ${this.best}.`;
+  }
+
+  // Slides the map from where the camera was to where it is now, so movement glides.
+  glide(dx, dy) {
+    const size = this.cellSize;
+    this.map.style.transition = "none";
+    this.map.style.transform = `translate(${dx * size}px, ${dy * size}px)`;
+    void this.map.offsetWidth;
+    this.map.style.transition = "";
+    this.map.style.transform = "";
+  }
+
+  // Floating numbers and spark bursts for this turn's hits and heals.
+  spawnEffects(effects) {
+    const origin = viewportOrigin(this.game.player);
+    const size = this.cellSize;
+    const at = (e) => ({ left: (e.x - origin.x + 0.5) * size, top: (e.y - origin.y + 0.5) * size });
+    let impact = false;
+
+    for (const e of effects) {
+      if (e.type === "hit") {
+        const pos = at(e);
+        const cls = e.by === "monster" ? "hurt" : e.sneak ? "sneak" : "deal";
+        this.floater(pos, e.killed && e.by !== "monster" ? `${e.amount}✝` : `${e.amount}`, cls);
+        this.sparks(pos, e.by === "monster" ? "blood" : "spark", e.killed ? 12 : 7);
+        if (e.amount >= IMPACT_DAMAGE || e.killed) impact = true;
+      } else if (e.type === "heal" && e.amount > 0) {
+        this.floater(at(e), `+${e.amount}`, "heal");
+      } else if (e.type === "smash") {
+        impact = true;
+      } else if (e.type === "brazier") {
+        this.sparks(at(e), "ember", 16);
+      }
+    }
+    if (impact) replay(this.mapWrap, "impact");
+  }
+
+  floater({ left, top }, text, cls) {
+    const el = document.createElement("span");
+    el.className = `floater ${cls}`;
+    el.textContent = text;
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    el.addEventListener("animationend", () => el.remove());
+    this.map.appendChild(el);
+  }
+
+  sparks({ left, top }, cls, count) {
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement("span");
+      el.className = `spark ${cls}`;
+      el.textContent = SPARK_GLYPHS[Math.floor(Math.random() * SPARK_GLYPHS.length)];
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 12 + Math.random() * 26;
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
+      el.style.setProperty("--dx", `${Math.cos(angle) * dist}px`);
+      el.style.setProperty("--dy", `${Math.sin(angle) * dist - 6}px`);
+      el.style.setProperty("--spin", `${Math.random() * 360 - 180}deg`);
+      el.addEventListener("animationend", () => el.remove());
+      this.map.appendChild(el);
+    }
+  }
+
+  // Saves the best depth and leaves bones for a later run.
+  recordRun() {
+    const { game } = this;
+    this.newBest = recordDepth(this.mode, game.depth);
+    if (this.newBest) this.best = game.depth;
+    if (this.mode === "random") {
+      if (game.bonesFound) clearBones();
+      saveBones(game.bonesRecord());
+    }
+  }
+
+  act(action) {
+    const { game } = this;
+    const wasPlaying = game.state !== "dead";
+    if (!game.playerAction(action)) return;
+    if (wasPlaying && game.state === "dead") this.recordRun();
+    if (action === "restart") this.newBest = false;
+    this.render();
+    this.spawnEffects(game.effects);
+    this.audio?.setDepth(game.depth);
+    this.audio?.setTorch(game.player.torchRadius);
+    this.audio?.play(game.effects);
   }
 
   bindKeyboard(target = window) {
     target.addEventListener("keydown", (event) => {
+      this.audio?.start();
+      if (event.key === "m" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        this.audio?.toggleMute();
+        this.renderMute();
+        return;
+      }
       const action = actionForKey(event);
       if (!action) return;
       event.preventDefault();
-      if (this.game.playerAction(action)) this.render();
+      this.act(action);
     });
   }
 }

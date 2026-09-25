@@ -10,7 +10,7 @@ const GLYPHS = {
   chasm: ":",
 };
 
-export const ITEM_GLYPHS = { potion: "!", oil: "¤" };
+export const ITEM_GLYPHS = { potion: "!", oil: "¤", bones: "†" };
 
 // Top-left map coordinate of a viewport centred on the player.
 export function viewportOrigin(player, size = VIEWPORT) {
