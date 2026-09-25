@@ -29,6 +29,8 @@ export class Game {
     this.turn = 0;
     this.state = "playing";
     this.messages = [];
+    this.messageCount = 0;
+    this.killedBy = null;
     this.enterLevel();
     this.log("You enter the caves. Find the stairs (>) to go deeper.");
   }
@@ -42,6 +44,7 @@ export class Game {
 
   log(text) {
     this.messages.push(text);
+    this.messageCount++;
     if (this.messages.length > MAX_MESSAGES) this.messages.shift();
   }
 
@@ -116,6 +119,7 @@ export class Game {
     for (const event of events) {
       if (event.target === this.player) {
         this.log(`The ${event.actor.name} ${event.actor.verb} you for ${event.damage}.`);
+        if (event.killed) this.killedBy = event.actor.name;
       }
     }
     this.turn++;
