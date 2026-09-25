@@ -1,4 +1,5 @@
-import { BRAZIER_RADIUS, Level } from "./level.js";
+import { BIOMES } from "./biomes.js";
+import { BRAZIER_RADIUS, FIRE_RADIUS, FUNGUS_RADIUS, Level } from "./level.js";
 import { lightLevel } from "./light.js";
 import { generateLevel } from "./levelgen.js";
 import { BRAZIER_COST, OIL_FUEL, Player, POTION_HEAL } from "./player.js";
@@ -22,6 +23,15 @@ export const SNEAK_MULTIPLIER = 3;
 export const SHADOWSTEP_MULTIPLIER = 5;
 export const FALL_DAMAGE = 3;
 export const ECHO_RANGE = 6;
+export const IGNITE_COST = 5;
+// Chance per turn that a goblin's torch sets the grass it stands in alight.
+export const GOBLIN_IGNITE_CHANCE = 0.12;
+// Chance that wading into water puts your torch out.
+export const WATER_DOUSE_CHANCE = 0.25;
+// Inside the Lightless's reach, every light shrinks to this.
+export const SMOTHERED_RADIUS = 1;
+// The Sun Stone shines, and it's the one light the Lightless can't eat.
+export const SUN_RADIUS = 4;
 const NOISE_RADIUS = 6;
 const MAX_MESSAGES = 100;
 
@@ -58,6 +68,7 @@ export class Game {
     this.messageCount = 0;
     this.killedBy = null;
     this.draft = null;
+    this.smothered = false;
     this.enterLevel();
     this.log("You enter the caves. Find the stairs (>) to go deeper.");
   }
@@ -68,7 +79,32 @@ export class Game {
     this.level.placeCreature(this.player, blueprint.playerStart.x, blueprint.playerStart.y);
     this.placeBones(blueprint);
     if (this.player.hasRelic("cartographer")) this.revealStairs();
+    this.waded = false;
     this.updateVisibility();
+    const arrival = BIOMES[this.level.biome]?.arrival;
+    if (arrival && this.depth > 1) this.log(arrival);
+    if (this.level.monsters.some((m) => m.eatsLight)) {
+      this.log("The deepest dark. Somewhere ahead, the Sun Stone waits, and something guards it.");
+    }
+  }
+
+  // The living light-eater, if there is one on this level.
+  get lightEater() {
+    return this.level.monsters.find((m) => m.alive && m.eatsLight) ?? null;
+  }
+
+  inDarkAura(x, y) {
+    const eater = this.lightEater;
+    return !!eater && Math.hypot(x - eater.x, y - eater.y) <= eater.eatsLight;
+  }
+
+  // Your torch radius, after crystal walls and the Lightless have had their say.
+  get torchRadius() {
+    const { player } = this;
+    if (!player.torchBurning) return 0;
+    let radius = player.torchRadius + (BIOMES[this.level.biome]?.torch ?? 0);
+    if (this.inDarkAura(player.x, player.y)) radius = SMOTHERED_RADIUS;
+    return radius;
   }
 
   // A previous adventurer's remains lie on the depth where they died.
@@ -117,10 +153,18 @@ export class Game {
   lightSources() {
     const { player, level } = this;
     const sources = [];
-    if (player.torchBurning) sources.push({ x: player.x, y: player.y, radius: player.torchRadius });
+    if (player.torchBurning) sources.push({ x: player.x, y: player.y, radius: this.torchRadius });
     for (const b of level.braziers()) if (b.lit) sources.push({ x: b.x, y: b.y, radius: BRAZIER_RADIUS });
     for (const m of level.monsters) if (m.alive && m.torch) sources.push({ x: m.x, y: m.y, radius: m.torch });
-    return sources;
+    for (const f of level.burningTiles()) sources.push({ x: f.x, y: f.y, radius: FIRE_RADIUS });
+    for (const f of level.fungusTiles()) sources.push({ x: f.x, y: f.y, radius: FUNGUS_RADIUS });
+    const smothered = sources.map((s) =>
+      this.inDarkAura(s.x, s.y) ? { ...s, radius: Math.min(s.radius, SMOTHERED_RADIUS) } : s,
+    );
+    level.items.forEach((x, y, item) => {
+      if (item?.type === "sun") smothered.push({ x, y, radius: SUN_RADIUS });
+    });
+    return smothered;
   }
 
   // Recomputes the light map and what the player can see.
@@ -140,7 +184,7 @@ export class Game {
       }
     }
 
-    const ownRadius = player.torchBurning ? player.torchRadius : DARK_SIGHT;
+    const ownRadius = player.torchBurning ? this.torchRadius : DARK_SIGHT;
     this.visible = computeFov(level.width, level.height, isOpaque, player.x, player.y, ownRadius);
     for (const i of computeFov(level.width, level.height, isOpaque, player.x, player.y, SIGHT_RANGE)) {
       if (this.light.has(i)) this.visible.add(i);
@@ -181,7 +225,7 @@ export class Game {
   // After each call, `effects` lists what happened, for sound and animation.
   playerAction(action) {
     this.effects = [];
-    if (this.state === "dead") {
+    if (this.state === "dead" || this.state === "won") {
       if (action !== "restart") return false;
       this.newGame();
       this.effect("restart");
@@ -198,6 +242,7 @@ export class Game {
     if (action === "descend") return this.descend();
     if (action === "quaff") return this.quaff();
     if (action === "torch") return this.toggleTorch();
+    if (action === "ignite") return this.ignite();
     return false;
   }
 
@@ -214,6 +259,7 @@ export class Game {
     const multiplier = sneak ? (this.player.hasRelic("shadowstep") ? SHADOWSTEP_MULTIPLIER : SNEAK_MULTIPLIER) : 1;
     const result = this.level.moveCreature(this.player, x, y, { multiplier });
     if (result.moved) this.effect("step");
+    if (result.moved && this.level.terrainAt(x, y) === "water") this.wade();
     if (result.target) this.reportAttack(result, sneak);
     if (result.item) this.pickUp(result.item);
     if (result.moved && this.level.isStairs(x, y)) this.log("There are stairs down here. Press > to descend.");
@@ -249,6 +295,8 @@ export class Game {
     } else if (item.type === "oil") {
       const added = this.player.addFuel(OIL_FUEL);
       this.log(`You refill your torch with oil (+${added}).`);
+    } else if (item.type === "sun") {
+      this.win();
     } else if (item.type === "bones") {
       this.bonesFound = true;
       this.player.potions += item.potions;
@@ -278,6 +326,45 @@ export class Game {
       }
     }
     return this.endTurn();
+  }
+
+  // Wading is slow: monsters get an extra move, and the water may put your torch out.
+  wade() {
+    this.slowed = true;
+    if (!this.waded) {
+      this.waded = true;
+      this.log("You wade through black water. It slows you down.");
+    }
+    if (this.player.torchBurning && this.rng.chance(WATER_DOUSE_CHANCE)) {
+      this.player.torchLit = false;
+      this.log("Water splashes over your torch and puts it out! Press t to relight it.");
+      this.effect("torch", { lit: false });
+    }
+  }
+
+  // Sets the grass next to you alight with your torch.
+  ignite() {
+    const { player, level } = this;
+    if (!player.torchBurning || player.fuel < IGNITE_COST) {
+      this.log("You need a burning torch to start a fire.");
+      return true;
+    }
+    let lit = 0;
+    for (const [dx, dy] of Object.values(DIRECTIONS)) if (level.ignite(player.x + dx, player.y + dy)) lit++;
+    if (lit === 0) {
+      this.log("Nothing next to you will burn.");
+      return true;
+    }
+    player.fuel -= IGNITE_COST;
+    this.log("You touch your torch to the grass. It catches!");
+    this.effect("ignite");
+    return this.endTurn();
+  }
+
+  win() {
+    this.state = "won";
+    this.log(`You lift the Sun Stone. Light floods the deep. You won in ${plural(this.turn, "turn")}!`);
+    this.effect("win");
   }
 
   toggleTorch() {
@@ -370,8 +457,54 @@ export class Game {
 
   endTurn() {
     this.burnFuel();
+    if (this.state === "won") return true;
     // Monsters see you by the light as it is before they move.
     this.updateVisibility();
+    this.monstersAct();
+    if (this.slowed && this.player.alive) this.monstersAct();
+    this.slowed = false;
+    this.worldActs();
+    this.turn++;
+    if (!this.player.alive) {
+      this.state = "dead";
+      this.log(`You die on depth ${this.depth} after ${plural(this.turn, "turn")}.`);
+      this.effect("death");
+    }
+    this.updateVisibility();
+    return true;
+  }
+
+  // Fire burns and spreads, goblin torches catch the grass, and the Lightless snuffs braziers.
+  worldActs() {
+    const { level, player } = this;
+    for (const m of level.monsters) {
+      if (m.alive && m.torch && level.terrainAt(m.x, m.y) === "grass" && this.rng.chance(GOBLIN_IGNITE_CHANCE)) {
+        if (level.ignite(m.x, m.y) && this.isVisible(m.x, m.y)) this.log(`The ${m.name}'s torch sets the grass alight!`);
+      }
+    }
+    for (const burn of level.updateFire(this.rng)) {
+      this.effect("hit", { x: burn.target.x, y: burn.target.y, amount: burn.damage, killed: burn.killed, by: "fire" });
+      if (burn.target === player) {
+        this.log(`You burn! (-${burn.damage})`);
+        if (burn.killed) this.killedBy = "flames";
+      } else if (this.isVisible(burn.target.x, burn.target.y)) {
+        this.log(burn.killed ? `The ${burn.target.name} burns to death.` : `The ${burn.target.name} burns.`);
+      }
+    }
+    let snuffed = false;
+    for (const b of level.braziers()) {
+      if (b.lit && this.inDarkAura(b.x, b.y)) {
+        level.features.get(b.x, b.y).lit = false;
+        snuffed = true;
+      }
+    }
+    if (snuffed) level.updateStaticLight();
+    const smothered = this.inDarkAura(player.x, player.y) && player.torchBurning;
+    if (smothered && !this.smothered) this.log("Your torch shrinks to an ember. Something is drinking the light.");
+    this.smothered = smothered;
+  }
+
+  monstersAct() {
     const darkNotice = this.player.hasRelic("hush") ? 1 : undefined;
     const events = this.level.processMonsters(this.player, this.rng, { playerLit: this.playerLit, darkNotice });
     for (const event of events) {
@@ -390,16 +523,13 @@ export class Game {
       } else if (event.noticed && seen) {
         this.log(`The ${event.actor.name} notices you.`);
         this.effect("notice", { x: event.actor.x, y: event.actor.y });
+      } else if (event.item && seen) {
+        this.log(`The ${event.actor.name} snatches up the ${event.item.type}!`);
+      } else if (event.fled && seen && !event.actor.fledBefore) {
+        event.actor.fledBefore = true;
+        this.log(`The ${event.actor.name} flees in terror.`);
       }
     }
-    this.turn++;
-    if (!this.player.alive) {
-      this.state = "dead";
-      this.log(`You die on depth ${this.depth} after ${plural(this.turn, "turn")}.`);
-      this.effect("death");
-    }
-    this.updateVisibility();
-    return true;
   }
 }
 

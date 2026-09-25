@@ -4,7 +4,7 @@ import { Level } from "../../src/level.js";
 import { Player } from "../../src/player.js";
 import { createRng } from "../../src/rng.js";
 
-const MONSTER_LETTERS = { r: "rat", b: "bat", g: "goblin", O: "ogre" };
+const MONSTER_LETTERS = { r: "rat", b: "bat", g: "goblin", O: "ogre", "&": "lightless" };
 
 // Builds a Level from ASCII rows:
 //   '#' wall, '.' floor, '@' player, '>' stairs, '!' potion,

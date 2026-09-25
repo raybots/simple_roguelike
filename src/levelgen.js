@@ -1,4 +1,5 @@
 import { brazierCount, monsterCount, oilCount, pickMonsterType, potionCount } from "./bestiary.js";
+import { paintTerrain, pickBiome } from "./biomes.js";
 import { FLOOR, generateCave, keepLargestRegion } from "./cavegen.js";
 import { bfsDistances } from "./pathfinding.js";
 
@@ -10,6 +11,8 @@ const SLEEP_CHANCE = 0.35;
 const LIT_BRAZIER_CHANCE = 0.25;
 const CHASM_MIN_DEPTH = 2;
 const CHASM_SAFE_DISTANCE = 8;
+// The last level. It holds the Sun Stone and its guardian instead of stairs.
+export const FINAL_DEPTH = 10;
 
 // Takes a random element out of the array.
 function takeRandom(rng, cells) {
@@ -37,6 +40,7 @@ export function generateLevel({ width, height, depth = 1, rng }) {
     if (region.length >= width * height * MIN_REGION_FRACTION) break;
   }
 
+  const final = depth >= FINAL_DEPTH;
   const playerStart = rng.pick(region);
   const distances = bfsDistances(width, height, (x, y) => walls.get(x, y) === FLOOR, playerStart);
   const distanceTo = ({ x, y }) => distances.get(x, y);
@@ -53,7 +57,7 @@ export function generateLevel({ width, height, depth = 1, rng }) {
   );
 
   const features = [];
-  const chasmCells = placeChasms({ walls, region, playerStart, stairs, distanceTo, depth, rng });
+  const chasmCells = final ? [] : placeChasms({ walls, region, playerStart, stairs, distanceTo, depth, rng });
   for (const c of chasmCells) features.push({ x: c.x, y: c.y, type: "chasm" });
   const isChasm = (c) => chasmCells.some((k) => k.x === c.x && k.y === c.y);
   for (let i = spawnable.length - 1; i >= 0; i--) if (isChasm(spawnable[i])) spawnable.splice(i, 1);
@@ -68,6 +72,18 @@ export function generateLevel({ width, height, depth = 1, rng }) {
   }
 
   const monsters = [];
+  const items = [];
+  // On the final level the "stairs" spot holds the Sun Stone, with its guardian beside it.
+  if (final) {
+    items.push({ x: stairs.x, y: stairs.y, type: "sun" });
+    const guard = spawnable
+      .filter((c) => Math.abs(c.x - stairs.x) + Math.abs(c.y - stairs.y) <= 3)
+      .sort((a, b) => Math.abs(a.x - stairs.x) + Math.abs(a.y - stairs.y) - (Math.abs(b.x - stairs.x) + Math.abs(b.y - stairs.y)))[0];
+    if (guard) {
+      monsters.push({ x: guard.x, y: guard.y, type: "lightless", state: "idle" });
+      spawnable.splice(spawnable.indexOf(guard), 1);
+    }
+  }
   const count = monsterCount(depth, region.length);
   for (let i = 0; i < count && spawnable.length > 0; i++) {
     const { x, y } = takeRandom(rng, spawnable);
@@ -75,7 +91,6 @@ export function generateLevel({ width, height, depth = 1, rng }) {
     monsters.push({ x, y, type: pickMonsterType(rng, depth), state });
   }
 
-  const items = [];
   for (let i = 0; i < potionCount(depth) && spawnable.length > 0; i++) {
     const { x, y } = takeRandom(rng, spawnable);
     items.push({ x, y, type: "potion" });
@@ -85,7 +100,12 @@ export function generateLevel({ width, height, depth = 1, rng }) {
     items.push({ x, y, type: "oil" });
   }
 
-  return { walls, playerStart, stairs, monsters, items, features, depth };
+  const biome = final ? "caves" : pickBiome(rng, depth);
+  const clear = (x, y) =>
+    (Math.abs(x - playerStart.x) <= 1 && Math.abs(y - playerStart.y) <= 1) || (x === stairs.x && y === stairs.y);
+  const terrain = paintTerrain(walls, biome, rng, clear);
+
+  return { walls, playerStart, stairs: final ? null : stairs, monsters, items, features, depth, biome, terrain };
 }
 
 // Chasms are small blobs of pit you can jump into to drop a level. A blob is only kept

@@ -4,11 +4,16 @@ import { Grid } from "./grid.js";
 import { computeFov } from "./visibility.js";
 
 export const BRAZIER_RADIUS = 4;
+export const FIRE_RADIUS = 2;
+export const FUNGUS_RADIUS = 2;
+export const FIRE_START = 4;
+export const FIRE_DAMAGE = 2;
+const FIRE_SPREAD_CHANCE = 0.45;
 
 const NO_MOVE = Object.freeze({ moved: false, target: null, damage: 0, killed: false, item: null });
 
 export class Level {
-  constructor({ walls, monsters = [], items = [], features = [], stairs = null, depth = 1 }) {
+  constructor({ walls, monsters = [], items = [], features = [], stairs = null, depth = 1, terrain = null, biome = "caves" }) {
     this.walls = walls;
     this.width = walls.width;
     this.height = walls.height;
@@ -18,6 +23,11 @@ export class Level {
     this.items = new Grid(this.width, this.height, null);
     this.features = new Grid(this.width, this.height, null);
     this.explored = new Grid(this.width, this.height, false);
+    this.biome = biome;
+    // Ground cover: null, "grass", "water", "fungus" or "ash".
+    this.terrain = terrain ?? new Grid(this.width, this.height, null);
+    // Burning tiles: 0 for none, otherwise turns of fire left.
+    this.fire = new Grid(this.width, this.height, 0);
     // Dead monsters stay in this list so they can be drawn as corpses.
     this.monsters = [];
     for (const f of features) this.features.set(f.x, f.y, { type: f.type, lit: !!f.lit });
@@ -88,6 +98,67 @@ export class Level {
     return true;
   }
 
+  terrainAt(x, y) {
+    return this.terrain.get(x, y);
+  }
+
+  isBurning(x, y) {
+    return this.fire.get(x, y) > 0;
+  }
+
+  // Sets grass alight. Returns true if it caught.
+  ignite(x, y) {
+    if (this.terrainAt(x, y) !== "grass" || this.isBurning(x, y)) return false;
+    this.fire.set(x, y, FIRE_START);
+    return true;
+  }
+
+  burningTiles() {
+    const tiles = [];
+    this.fire.forEach((x, y, f) => {
+      if (f > 0) tiles.push({ x, y, f });
+    });
+    return tiles;
+  }
+
+  fungusTiles() {
+    const tiles = [];
+    this.terrain.forEach((x, y, t) => {
+      if (t === "fungus") tiles.push({ x, y });
+    });
+    return tiles;
+  }
+
+  // One turn of fire: burning tiles hurt whoever stands in them, spread to neighbouring
+  // grass, and burn down to ash. Returns who got burned.
+  updateFire(rng) {
+    const burning = this.burningTiles();
+    const burns = [];
+    for (const { x, y } of burning) {
+      const creature = this.creatureAt(x, y);
+      if (creature?.alive) {
+        creature.hp -= FIRE_DAMAGE;
+        const killed = !creature.alive;
+        if (killed && !creature.isPlayer) this.removeCreature(creature);
+        if (killed) this.dropLoot(creature);
+        burns.push({ target: creature, damage: FIRE_DAMAGE, killed });
+      }
+    }
+    for (const { x, y } of burning) {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (!this.isBurning(x + dx, y + dy) && this.terrainAt(x + dx, y + dy) === "grass" && rng.chance(FIRE_SPREAD_CHANCE)) {
+          this.fire.set(x + dx, y + dy, FIRE_START + 1);
+        }
+      }
+    }
+    for (const { x, y } of burning) {
+      const left = this.fire.get(x, y) - 1;
+      this.fire.set(x, y, left);
+      if (left === 0) this.terrain.set(x, y, "ash");
+    }
+    return burns;
+  }
+
   // Puts a creature on an empty floor tile. Returns false if the tile is taken.
   placeCreature(creature, x, y) {
     if (!this.isPassable(x, y)) return false;
@@ -120,6 +191,7 @@ export class Level {
       const { damage, killed } = creature.attack(other, multiplier);
       // Corpses don't block movement. The player stays on the map so the UI can show them.
       if (killed && !other.isPlayer) this.removeCreature(other);
+      if (killed) this.dropLoot(other);
       return { ...NO_MOVE, target: other, damage, killed };
     }
 
@@ -127,10 +199,13 @@ export class Level {
     creature.moveTo(x, y);
     this.creatures.set(x, y, creature);
 
+    // The player picks up anything. Thieving monsters grab anything but the Sun Stone.
     let item = null;
-    if (creature.isPlayer && this.itemAt(x, y)) {
-      item = this.itemAt(x, y);
+    const here = this.itemAt(x, y);
+    if (here && (creature.isPlayer || (creature.collects && here.type !== "sun"))) {
+      item = here;
       this.items.set(x, y, null);
+      if (!creature.isPlayer) creature.loot.push(item);
     }
     return { ...NO_MOVE, moved: true, item };
   }
@@ -139,7 +214,21 @@ export class Level {
   strikeCreature(attacker, target, amount) {
     const { damage, killed } = attacker.strike(target, amount);
     if (killed && !target.isPlayer) this.removeCreature(target);
+    if (killed) this.dropLoot(target);
     return { damage, killed };
+  }
+
+  // A dead thief drops what it carried on and around the spot it died.
+  dropLoot(creature) {
+    if (!creature.loot?.length) return;
+    const spots = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
+    for (const [dx, dy] of spots) {
+      if (creature.loot.length === 0) break;
+      const x = creature.x + dx;
+      const y = creature.y + dy;
+      if (this.isBlocked(x, y) || this.itemAt(x, y) || this.isStairs(x, y)) continue;
+      this.items.set(x, y, creature.loot.shift());
+    }
   }
 
   // Tiles about to be smashed by winding-up monsters.

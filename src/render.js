@@ -8,9 +8,11 @@ const GLYPHS = {
   unknown: " ",
   brazier: "Ω",
   chasm: ":",
+  fire: "^",
 };
 
-export const ITEM_GLYPHS = { potion: "!", oil: "¤", bones: "†" };
+export const ITEM_GLYPHS = { potion: "!", oil: "¤", bones: "†", sun: "☼" };
+export const TERRAIN_GLYPHS = { grass: '"', water: "~", fungus: "♣", ash: "," };
 
 // Top-left map coordinate of a viewport centred on the player.
 export function viewportOrigin(player, size = VIEWPORT) {
@@ -78,6 +80,9 @@ function terrainGlyph(level, x, y) {
   if (level.isStairs(x, y)) return { glyph: GLYPHS.stairs, cls: "stairs" };
   const item = level.itemAt(x, y);
   if (item) return { glyph: ITEM_GLYPHS[item.type] ?? "?", cls: "item", kind: item.type };
+  if (level.isBurning(x, y)) return { glyph: GLYPHS.fire, cls: "fire" };
+  const ground = level.terrainAt(x, y);
+  if (ground) return { glyph: TERRAIN_GLYPHS[ground], cls: "terrain", kind: ground };
   return { glyph: GLYPHS.floor, cls: "vis" };
 }
 
