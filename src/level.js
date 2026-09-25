@@ -1,133 +1,78 @@
-function Level(width, height)
-{
-	this.width = width;
-	this.height = height;
+import { FLOOR } from "./cavegen.js";
+import { Grid } from "./grid.js";
+import { Monster } from "./monster.js";
 
-	this.monsterArray = [];
+export class Level {
+  constructor({ walls, monsters = [] }) {
+    this.walls = walls;
+    this.width = walls.width;
+    this.height = walls.height;
+    this.creatures = new Grid(this.width, this.height, null);
+    // Dead monsters stay in this list so they can be drawn as corpses.
+    this.monsters = [];
+    for (const spec of monsters) this.addMonster(new Monster({ x: spec.x, y: spec.y }));
+  }
 
-	this.wallGrid = new Grid(width, height);
-	this.lookGrid = new Grid(width, height);
-	this.creatureGrid = new Grid(width, height);
+  // Out-of-bounds counts as wall.
+  isWall(x, y) {
+    return this.walls.get(x, y) !== FLOOR;
+  }
 
-	this.creatureGrid.clear();
-}
+  creatureAt(x, y) {
+    return this.creatures.get(x, y);
+  }
 
-// places a monster down at the specified coordinates
-Level.prototype.placeCreature = function(x, y, creature)
-{
-	var canMove = false;
+  isPassable(x, y) {
+    return !this.isWall(x, y) && !this.creatureAt(x, y);
+  }
 
-	if (this.wallGrid.getVal(x, y) == 0)
-	{
-		if (this.creatureGrid.getVal(x, y))
-		{
-			if (this.creatureGrid.getVal(x, y).isAlive())
-				creature.collides(this.creatureGrid.getVal(x, y));
-			else
-				canMove = true;
-		}
-		else
-			canMove = true;
-	}
+  // Puts a creature on an empty floor tile. Returns false if the tile is taken.
+  placeCreature(creature, x, y) {
+    if (!this.isPassable(x, y)) return false;
+    this.removeCreature(creature);
+    creature.moveTo(x, y);
+    this.creatures.set(x, y, creature);
+    return true;
+  }
 
-	if (canMove)
-	{
-		this.creatureGrid.setVal(creature.x, creature.y, null);
-		creature.move(x, y);
-		this.creatureGrid.setVal(x, y, creature);		
-	}
-}
+  addMonster(monster) {
+    if (!this.placeCreature(monster, monster.x, monster.y)) return false;
+    this.monsters.push(monster);
+    return true;
+  }
 
-// goes through the monsters and makes them do stuff
-Level.prototype.processMonsters = function(playerX, playerY)
-{
-	for (var i = 0; i < this.monsterArray.length; i++)
-	{
-		if (this.monsterArray[i].isAlive())
-			this.monsterArray[i].process(playerX, playerY, this.wallGrid, this.creatureGrid);
-	}
-}
+  removeCreature(creature) {
+    if (this.creatures.get(creature.x, creature.y) === creature) {
+      this.creatures.set(creature.x, creature.y, null);
+    }
+  }
 
-// creates a cave level by randomly filling it with tiles, then adding or removing tiles that can make it look more cave like
-Level.prototype.genCave = function()
-{
-	for (var y = 5; y < this.wallGrid.height - 8; y++)
-	{
-		for (var x = 0; x < this.wallGrid.width; x++)
-		{
-			if (Math.random() > 0.55)
-				this.wallGrid.setVal(x, y, 1);
-		}
-	}
+  // Moves a creature one tile. Walking into another creature attacks it instead.
+  moveCreature(creature, x, y) {
+    if (this.isWall(x, y)) return { moved: false, target: null, damage: 0, killed: false };
 
-	for (var i = 0; i < 5; i++)
-		this.cull();
+    const other = this.creatureAt(x, y);
+    if (other && other !== creature) {
+      const { damage, killed } = creature.attack(other);
+      // Corpses don't block movement. The player stays on the map so the UI can show them.
+      if (killed && !other.isPlayer) this.removeCreature(other);
+      return { moved: false, target: other, damage, killed };
+    }
 
-	this.addEnemies();	
-}
+    this.removeCreature(creature);
+    creature.moveTo(x, y);
+    this.creatures.set(x, y, creature);
+    return { moved: true, target: null, damage: 0, killed: false };
+  }
 
-Level.prototype.addEnemies = function()
-{
-	for (var y = Math.floor(this.width / 2); y < this.height - 8; y++)
-	{
-		for (var x = 0; x < this.width; x++)
-		{
-			if (Math.random() > 0.99 && this.wallGrid.getVal(x, y) == 0)
-				this.spawnMonster(x, y);
-		}
-	}
-
-	console.log(this.monsterArray.length + " monsters generated");
-}
-
-Level.prototype.spawnMonster = function(x, y)
-{
-	if (this.wallGrid.contains(x, y))
-	{
-		var moveCallback = jQuery.proxy(this.placeCreature, this);
-
-		var monster = new Monster(moveCallback);
-
-		this.placeCreature(x, y, monster);
-		this.monsterArray.push(monster);
-	}
-	else
-	{
-		return false;	
-	}
-}
-
-Level.prototype.cull = function()
-{
-	var tempGrid = new Grid(this.width, this.height);
-
-	for (y = 0; y < tempGrid.height; y++)
-	{
-		for (x = 0; x < tempGrid.width; x++)
-		{
-			var wallCount = 0;
-
-			for (var yCheck = y - 1; yCheck < (y + 2); yCheck++)
-			{
-				for (var xCheck = x - 1; xCheck < (x + 2); xCheck++)
-				{
-					if (this.wallGrid.getVal(xCheck, yCheck) == 1)
-						wallCount++;
-				}
-			}
-
-			if (wallCount >= 5)
-				tempGrid.setVal(x, y, 1)
-			else
-				tempGrid.setVal(x, y, 0)
-		}
-	}	
-
-	for (y = 0; y < tempGrid.height; y++)
-	{
-		for (x = 0; x < tempGrid.width; x++)
-		{
-			this.wallGrid.setVal(x, y, tempGrid.getVal(x,y));
-		}
-	}
+  // Every living monster takes a turn. Returns what each one did.
+  processMonsters(player) {
+    const events = [];
+    for (const monster of this.monsters) {
+      if (!monster.alive) continue;
+      const result = monster.takeTurn(this, player);
+      if (result) events.push({ actor: monster, ...result });
+    }
+    return events;
+  }
 }

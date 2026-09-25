@@ -1,57 +1,44 @@
-function Grid(width, height)
-{
-	this.width = width;
-	this.height = height;
+// A fixed-size 2D grid stored as a flat array. Out-of-bounds reads return null.
+export class Grid {
+  constructor(width, height, fill = 0) {
+    this.width = width;
+    this.height = height;
+    this.cells = new Array(width * height).fill(fill);
+  }
 
-	this.matrix = [];
-	
-	// init
-	for (var y = 0; y < this.height; y++)
-	{
-		this.matrix.push([]);
+  contains(x, y) {
+    return x >= 0 && x < this.width && y >= 0 && y < this.height;
+  }
 
-		for (var x = 0; x < this.width; x++)
-		{
-			this.matrix[y].push(0);
-		}
-	}
-}
+  index(x, y) {
+    return y * this.width + x;
+  }
 
-// clears all values in the grid
-Grid.prototype.clear = function()
-{
-	for (var y = 0; y < this.height; y++)
-	{
-		for (var x = 0; x < this.width; x++)
-		{
-			this.setVal(x, y, null);
-		}
-	}
-}
+  get(x, y) {
+    return this.contains(x, y) ? this.cells[this.index(x, y)] : null;
+  }
 
-// gets a value at the specified coordinates
-Grid.prototype.getVal = function(x, y)
-{
-	if (this.contains(x, y))
-		return this.matrix[y][x];
-	else
-		return null;
-}
+  // Returns false (and does nothing) when out of bounds.
+  set(x, y, value) {
+    if (!this.contains(x, y)) return false;
+    this.cells[this.index(x, y)] = value;
+    return true;
+  }
 
-// sets a value at the specified coordinates
-Grid.prototype.setVal = function(x, y, val)
-{
-	if (this.contains(x, y))
-		this.matrix[y][x] = val;
-	else
-		return false;
-}
+  fill(value) {
+    this.cells.fill(value);
+    return this;
+  }
 
-// checks whether the coordinates exist in the grid, a bounds check
-Grid.prototype.contains = function(x, y)
-{
-	if (x >= 0 && x < this.width && y >= 0 && y < this.height)
-		return true;
-	else
-		return false;
+  clone() {
+    const copy = new Grid(this.width, this.height);
+    copy.cells = this.cells.slice();
+    return copy;
+  }
+
+  forEach(fn) {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) fn(x, y, this.cells[this.index(x, y)]);
+    }
+  }
 }

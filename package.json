@@ -1,0 +1,10 @@
+{
+  "name": "simple_roguelike",
+  "private": true,
+  "type": "module",
+  "description": "A simple ASCII roguelike that runs in the browser.",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "start": "python3 -m http.server 8000"
+  }
+}

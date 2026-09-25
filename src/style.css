@@ -1,12 +1,24 @@
-#stage
-{
-    left: 0px;
-    top: 0px;
-    margin:0px;
-    padding: 0px;
+body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
 }
 
-#gameBackground
-{
-    text-align: center;
+#stage {
+  text-align: center;
+  font-family: sans-serif;
+}
+
+#map {
+  display: inline-block;
+  margin: 20px auto;
+  padding: 0;
+  text-align: left;
+  font: 16px "Courier New", monospace;
+  line-height: 0.65;
+  white-space: pre;
+  color: #444;
+  background-color: #f7f7f7;
+  border: 1px solid #d2d2d2;
+  border-top-color: #e9e9e9;
 }
