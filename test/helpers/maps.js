@@ -50,3 +50,9 @@ export function gameFromStrings(rows, seed = 1) {
   game.updateVisibility();
   return { game, level, player, monsters, marks };
 }
+
+// Adds braziers to a fixture level: 'Ω' marks unlit, pass lit positions separately.
+export function addBrazier(level, x, y, lit = false) {
+  level.features.set(x, y, { type: "brazier", lit });
+  level.updateStaticLight();
+}

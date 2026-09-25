@@ -3,6 +3,19 @@ import { CARDINALS, distance } from "./geometry.js";
 import { findPath } from "./pathfinding.js";
 import { hasLineOfSight } from "./visibility.js";
 
+// Awareness states, from least to most dangerous:
+//   asleep   - only wakes if you come close in the light, or make noise
+//   idle     - awake, not yet aware of you
+//   alert    - has just noticed you and takes one turn to react (shown as '?')
+//   hunting  - chasing you (shown as '!')
+export const STATES = ["asleep", "idle", "alert", "hunting"];
+
+// In the dark you can only be noticed from this close.
+export const DARK_NOTICE_RANGE = 2;
+// Sleepers wake reliably within this distance if you're lit.
+const WAKE_RANGE = 3;
+const ALERT_PATIENCE = 4;
+
 export class Monster extends Creature {
   constructor({
     x = 0,
@@ -17,6 +30,9 @@ export class Monster extends Creature {
     speed = 1,
     erratic = 0,
     remembers = true,
+    torch = 0,
+    fearsLight = false,
+    state = "idle",
   } = {}) {
     super({ x, y, glyph, name, hp, damage });
     this.type = type;
@@ -25,40 +41,97 @@ export class Monster extends Creature {
     this.speed = speed;
     this.erratic = erratic;
     this.remembers = remembers;
-    this.seenPlayer = false;
+    this.torch = torch;
+    this.fearsLight = fearsLight;
+    this.state = state;
+    this.alertTurns = 0;
     this.energy = 0;
   }
 
-  // Checks line of sight to the target. Once seen, the monster remembers the player.
+  // Kept for convenience: a monster that has "seen the player" is hunting.
+  get seenPlayer() {
+    return this.state === "hunting";
+  }
+
+  set seenPlayer(value) {
+    this.state = value ? "hunting" : "idle";
+  }
+
+  get unaware() {
+    return this.state !== "hunting";
+  }
+
+  hasLineOfSightTo(level, target) {
+    return hasLineOfSight((x, y) => level.isWall(x, y), this.x, this.y, target.x, target.y);
+  }
+
+  // Whether the monster can see the player at all.
   canSee(level, target) {
-    const visible = hasLineOfSight((x, y) => level.isWall(x, y), this.x, this.y, target.x, target.y);
-    if (visible) this.seenPlayer = true;
-    return visible;
+    return distance(this.x, this.y, target.x, target.y) <= this.range && this.hasLineOfSightTo(level, target);
+  }
+
+  // Whether an unaware monster notices the player. Being lit makes you visible from afar.
+  notices(level, player, playerLit) {
+    const d = distance(this.x, this.y, player.x, player.y);
+    const reach = playerLit ? this.range : DARK_NOTICE_RANGE;
+    return d <= reach && this.hasLineOfSightTo(level, player);
+  }
+
+  canEnter(level, x, y) {
+    if (!level.isPassable(x, y)) return false;
+    return !(this.fearsLight && level.inStaticLight(x, y));
   }
 
   // Returns the level's move result, or null if the monster did nothing.
-  takeTurn(level, player, rng) {
+  // ctx.playerLit says whether the player is standing in any light.
+  takeTurn(level, player, rng, ctx = {}) {
     if (!this.alive) return null;
+    const playerLit = ctx.playerLit ?? true;
 
     // Slow monsters build up energy and only act once they have a full point.
     this.energy += this.speed;
     if (this.energy < 1) return null;
     this.energy -= 1;
 
+    if (this.state === "asleep") {
+      const close = distance(this.x, this.y, player.x, player.y) <= WAKE_RANGE;
+      if (this.notices(level, player, playerLit) && (close || rng?.chance(0.1))) this.state = "alert";
+      return null;
+    }
+
     if (this.erratic && rng && rng.chance(this.erratic)) return this.wander(level, player, rng);
 
-    const inRange = distance(this.x, this.y, player.x, player.y) <= this.range;
-    const remembered = this.remembers && this.seenPlayer;
-    if (!inRange && !remembered) return null;
-    const sees = this.canSee(level, player);
-    if (!sees && !remembered) return null;
+    if (this.state === "idle") {
+      if (this.notices(level, player, playerLit)) {
+        this.state = "alert";
+        this.alertTurns = 0;
+      }
+      return null;
+    }
 
+    if (this.state === "alert") {
+      if (!this.notices(level, player, playerLit)) {
+        if (++this.alertTurns >= ALERT_PATIENCE) this.state = "idle";
+        return null;
+      }
+      this.state = "hunting";
+    }
+
+    // Hunting.
+    if (!this.canSee(level, player) && !this.remembers) {
+      this.state = "idle";
+      return null;
+    }
+    return this.stepToward(level, player);
+  }
+
+  stepToward(level, target) {
     const path = findPath(
       level.width,
       level.height,
-      (x, y) => level.isPassable(x, y),
+      (x, y) => this.canEnter(level, x, y),
       { x: this.x, y: this.y },
-      { x: player.x, y: player.y },
+      { x: target.x, y: target.y },
     );
     if (!path || path.length < 2) return null;
     return level.moveCreature(this, path[1].x, path[1].y);
@@ -67,7 +140,7 @@ export class Monster extends Creature {
   // A random step. Stumbling into the player still counts as an attack.
   wander(level, player, rng) {
     const options = CARDINALS.map(([dx, dy]) => ({ x: this.x + dx, y: this.y + dy })).filter(
-      ({ x, y }) => level.isPassable(x, y) || level.creatureAt(x, y) === player,
+      ({ x, y }) => this.canEnter(level, x, y) || level.creatureAt(x, y) === player,
     );
     if (options.length === 0) return null;
     const step = rng.pick(options);

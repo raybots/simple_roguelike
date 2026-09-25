@@ -4,7 +4,14 @@ A simple roguelike with a character, enemies and a procedurally generated cave t
 Graphics are ASCII characters.
 
 Find the stairs on each level and see how deep you can get before something kills you.
-You only see what's in your line of sight. Tiles you've already explored stay dimly visible.
+
+Your torch is everything. It lights what you can see, it burns down as you walk, and its
+light shrinks as the fuel runs low. You can also see anything lit by a brazier or a goblin's
+torch, and light around corners glows through the dark. Tiles you've explored stay faintly
+remembered.
+
+Light cuts both ways. Monsters notice a lit player from far away, but in the dark they only
+notice you up close. Unaware monsters take triple damage, so douse your torch and creep up.
 
 Play it here: https://raybots.github.io/simple_roguelike/
 
@@ -17,6 +24,7 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | Wait a turn | `.` or Space |
 | Go down stairs | `>` |
 | Drink a potion | `q` |
+| Douse or relight your torch | `t` |
 | Play again after dying | Enter |
 
 ## What's in the caves
@@ -26,11 +34,15 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | `@` | You | 30 HP. Potions and HP carry over between levels. |
 | `>` | Stairs down | Usually on the far side of the level. |
 | `!` | Potion | Picked up automatically. Heals 10 HP. |
+| `¤` | Oil | Refuels your torch. |
+| `Ω` | Brazier | Bump it to light it for a little fuel. Lights the area for good, and bats won't enter. |
 | `r` | Rat | Weak, but remembers you once it has seen you. |
 | `b` | Bat | Flits about randomly and forgets you when you're out of sight. |
-| `g` | Goblin | Appears from depth 2. Hits for 2. |
+| `g` | Goblin | Appears from depth 2. Hits for 2. Carries a torch, so you'll see its light first. |
 | `O` | Ogre | Appears from depth 4. Slow but hits for 4. |
 | `x` | Corpse | |
+
+Small marks over a monster show what it knows: `z` asleep, `?` has just noticed you, `!` hunting.
 
 Each level has more monsters than the last, and they gain extra HP every three levels.
 The numbers live in `src/bestiary.js` and `src/player.js` if you want to rebalance things.

@@ -1,6 +1,9 @@
 import { actionForKey } from "./input.js";
-import { recentMessages, renderStatus, renderViewport, VIEWPORT } from "./render.js";
-import { cellClass, displayGlyph, epitaph, lightLevel, messageTone } from "./theme.js";
+import { recentMessages, renderStatus, renderViewport, VIEWPORT, viewportOrigin } from "./render.js";
+import { cellClass, displayGlyph, epitaph, messageTone, STATE_MARKERS } from "./theme.js";
+
+// Visible tiles never go fully black, even outside any light.
+const MIN_VISIBLE_LIGHT = 0.14;
 
 const LOG_LINES = 6;
 
@@ -23,6 +26,8 @@ export class DomUI {
     this.overlay = root.querySelector("#overlay");
     this.hpFill = root.querySelector("#hp-fill");
     this.hpText = root.querySelector("#hp-text");
+    this.fuelFill = root.querySelector("#fuel-fill");
+    this.fuelText = root.querySelector("#fuel-text");
     this.hud = root.querySelector("#hud");
     this.potions = root.querySelector("#potions");
     this.depth = root.querySelector("#depth");
@@ -38,15 +43,13 @@ export class DomUI {
     this.map.style.setProperty("--cols", width);
     this.map.style.setProperty("--rows", height);
     this.cells = [];
-    const cx = Math.floor(width / 2);
-    const cy = Math.floor(height / 2);
     const fragment = document.createDocumentFragment();
     for (let y = 0; y < height; y++) {
       const row = [];
       for (let x = 0; x < width; x++) {
         const span = document.createElement("span");
-        // The player is always at the centre, so each cell's light level is fixed.
-        span.style.setProperty("--l", lightLevel(x - cx, y - cy));
+        span.light = -1;
+        span.marker = "";
         fragment.appendChild(span);
         row.push(span);
       }
@@ -57,7 +60,10 @@ export class DomUI {
 
   render() {
     const { game } = this;
-    const rows = renderViewport(game.level, game.player, { isVisible: (x, y) => game.isVisible(x, y) });
+    const isVisible = (x, y) => game.isVisible(x, y);
+    const lightAt = (x, y) => game.lightAt(x, y);
+    const rows = renderViewport(game.level, game.player, { isVisible, lightAt });
+    const origin = viewportOrigin(game.player);
     rows.forEach((row, y) =>
       row.forEach((cell, x) => {
         const span = this.cells[y][x];
@@ -65,8 +71,26 @@ export class DomUI {
         if (span.className !== className) span.className = className;
         const glyph = displayGlyph(cell.glyph);
         if (span.textContent !== glyph) span.textContent = glyph;
+
+        const mx = origin.x + x;
+        const my = origin.y + y;
+        const raw = lightAt(mx, my);
+        const light = isVisible(mx, my) ? Math.max(raw, MIN_VISIBLE_LIGHT) : raw;
+        if (span.light !== light) {
+          span.light = light;
+          span.style.setProperty("--l", light);
+        }
+
+        const marker = STATE_MARKERS[cell.state] ?? "";
+        if (span.marker !== marker) {
+          span.marker = marker;
+          if (marker) span.dataset.m = marker;
+          else delete span.dataset.m;
+        }
       }),
     );
+    this.mapWrap.style.setProperty("--torch", game.player.torchRadius / 8);
+    this.mapWrap.classList.toggle("doused", !game.player.torchBurning);
 
     this.renderHud();
     this.renderLog();
@@ -82,6 +106,9 @@ export class DomUI {
     this.hpFill.style.setProperty("--hp", ratio);
     this.hpText.textContent = `${hp}/${player.maxHp}`;
     this.hud.classList.toggle("low", ratio <= 0.3 && hp > 0);
+    this.fuelFill.style.setProperty("--fuel", player.fuel / player.maxFuel);
+    this.fuelText.textContent = player.torchBurning ? `r${player.torchRadius}` : player.fuel > 0 ? "out" : "dead";
+    this.hud.classList.toggle("fuel-low", player.fuel <= 100);
     this.potions.textContent = player.potions;
     this.potions.parentElement.classList.toggle("empty", player.potions === 0);
     this.depth.textContent = depth;

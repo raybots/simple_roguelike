@@ -27,13 +27,15 @@ test("unknown actions are ignored", () => {
 
 test("waiting lets monsters act", () => {
   const { game, monsters } = gameFromStrings(["r...@"]);
+  monsters[0].seenPlayer = true;
   game.playerAction("wait");
   assert.equal(monsters[0].x, 1);
   assert.equal(game.turn, 1);
 });
 
 test("combat is reported in the message log", () => {
-  const { game } = gameFromStrings(["@g"]);
+  const { game, monsters } = gameFromStrings(["@g"]);
+  monsters[0].seenPlayer = true;
   game.playerAction("right");
   assert.deepEqual(game.messages, ["You hit the goblin.", "The goblin hits you for 2."]);
   game.playerAction("right");
@@ -85,7 +87,8 @@ test("drinking with no potions costs no turn", () => {
 });
 
 test("the player can die, then only restart works", () => {
-  const { game, player } = gameFromStrings(["@g."]);
+  const { game, player, monsters } = gameFromStrings(["@g."]);
+  monsters[0].seenPlayer = true;
   player.hp = 2;
   game.playerAction("wait");
   assert.equal(game.state, "dead");

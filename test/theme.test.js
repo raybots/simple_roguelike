@@ -30,7 +30,8 @@ test("log messages get a tone", () => {
 });
 
 test("the epitaph names the killer", () => {
-  const { game, player } = gameFromStrings(["@g."]);
+  const { game, player, monsters } = gameFromStrings(["@g."]);
+  monsters[0].seenPlayer = true;
   player.hp = 2;
   game.playerAction("wait");
   assert.equal(game.killedBy, "goblin");
