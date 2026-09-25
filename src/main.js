@@ -8,7 +8,9 @@ const seed = seedParam && /^\d+$/.test(seedParam) ? Number(seedParam) >>> 0 : un
 const rng = createRng(seed);
 console.log(`seed: ${rng.seed}`);
 
-const game = new Game({ rng });
+// Exported so the game can be inspected from the browser console:
+//   const { game } = await import("./src/main.js")
+export const game = new Game({ rng });
 const ui = new DomUI(game, document.getElementById("stage"));
 ui.bindKeyboard();
 ui.render();

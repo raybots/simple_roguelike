@@ -12,6 +12,11 @@ export const KEY_ACTIONS = {
   d: "right",
   w: "up",
   s: "down",
+  ".": "wait",
+  " ": "wait",
+  ">": "descend",
+  q: "quaff",
+  Enter: "restart",
 };
 
 // Returns the action for a key event, or null. Keys held with Ctrl, Cmd or Alt are

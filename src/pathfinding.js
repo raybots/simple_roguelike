@@ -1,4 +1,5 @@
 import { CARDINALS } from "./geometry.js";
+import { Grid } from "./grid.js";
 
 // Breadth-first search on a 4-connected grid. Returns the path from start to goal
 // as [{x, y}, ...] including both ends, or null when the goal is unreachable.
@@ -45,4 +46,25 @@ function rebuildPath(previous, goalIndex, width) {
     path.push({ x: i % width, y: Math.floor(i / width) });
   }
   return path.reverse();
+}
+
+// Step counts from start to every reachable cell. Unreachable cells are -1.
+export function bfsDistances(width, height, isPassable, start) {
+  const distances = new Grid(width, height, -1);
+  if (!distances.contains(start.x, start.y)) return distances;
+
+  distances.set(start.x, start.y, 0);
+  const queue = [start];
+  for (let head = 0; head < queue.length; head++) {
+    const { x, y } = queue[head];
+    const d = distances.get(x, y);
+    for (const [dx, dy] of CARDINALS) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (distances.get(nx, ny) !== -1 || !isPassable(nx, ny)) continue;
+      distances.set(nx, ny, d + 1);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return distances;
 }
