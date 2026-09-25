@@ -34,6 +34,9 @@ export class Monster extends Creature {
     fearsLight = false,
     stride = 1,
     telegraph = false,
+    fears = null,
+    collects = false,
+    eatsLight = 0,
     state = "idle",
   } = {}) {
     super({ x, y, glyph, name, hp, damage });
@@ -48,6 +51,10 @@ export class Monster extends Creature {
     this.stride = stride;
     this.telegraph = telegraph;
     this.strideCount = 0;
+    this.fears = fears;
+    this.collects = collects;
+    this.eatsLight = eatsLight;
+    this.loot = [];
     // Tiles this monster will smash on its next turn, or null.
     this.windup = null;
     this.state = state;
@@ -85,8 +92,48 @@ export class Monster extends Creature {
   }
 
   canEnter(level, x, y) {
-    if (!level.isPassable(x, y)) return false;
+    if (!level.isPassable(x, y) || level.isBurning(x, y)) return false;
     return !(this.fearsLight && level.inStaticLight(x, y));
+  }
+
+  // The nearest living monster of the type this one fears, if it's close and in sight.
+  threat(level) {
+    if (!this.fears) return null;
+    return level.monsters.find(
+      (m) => m.alive && m.type === this.fears && distance(m.x, m.y, this.x, this.y) <= 4 && this.hasLineOfSightTo(level, m),
+    );
+  }
+
+  // Steps to whichever neighbouring tile is furthest from the threat.
+  flee(level, threat) {
+    let best = null;
+    let bestDistance = distance(this.x, this.y, threat.x, threat.y);
+    for (const [dx, dy] of CARDINALS) {
+      const x = this.x + dx;
+      const y = this.y + dy;
+      const d = distance(x, y, threat.x, threat.y);
+      if (d > bestDistance && this.canEnter(level, x, y)) {
+        best = { x, y };
+        bestDistance = d;
+      }
+    }
+    return best ? { ...level.moveCreature(this, best.x, best.y), fled: true } : null;
+  }
+
+  // The nearest item in sight within 6 tiles, for thieves.
+  wantedItem(level) {
+    let best = null;
+    for (let dy = -6; dy <= 6; dy++) {
+      for (let dx = -6; dx <= 6; dx++) {
+        const x = this.x + dx;
+        const y = this.y + dy;
+        const item = level.itemAt(x, y);
+        if (!item || item.type === "sun") continue;
+        const d = Math.abs(dx) + Math.abs(dy);
+        if ((!best || d < best.d) && this.hasLineOfSightTo(level, { x, y })) best = { x, y, d };
+      }
+    }
+    return best;
   }
 
   // Returns the level's move result, or null if the monster did nothing.
@@ -108,12 +155,20 @@ export class Monster extends Creature {
       return null;
     }
 
+    const threat = this.threat(level);
+    if (threat) return this.flee(level, threat);
+
     if (this.erratic && rng && rng.chance(this.erratic)) return this.wander(level, player, rng);
 
     if (this.state === "idle") {
       if (notices()) {
         this.state = "alert";
         this.alertTurns = 0;
+        return null;
+      }
+      if (this.collects) {
+        const item = this.wantedItem(level);
+        if (item) return this.stepToward(level, item, true);
       }
       return null;
     }
@@ -166,7 +221,9 @@ export class Monster extends Creature {
     return { smash: true, hits };
   }
 
-  stepToward(level, target) {
+  // One step along the shortest path. Unless `onto` is set, the goal tile itself is
+  // entered by attacking whatever stands there.
+  stepToward(level, target, onto = false) {
     const path = findPath(
       level.width,
       level.height,
@@ -175,7 +232,9 @@ export class Monster extends Creature {
       { x: target.x, y: target.y },
     );
     if (!path || path.length < 2) return null;
-    return level.moveCreature(this, path[1].x, path[1].y);
+    const next = path[1];
+    if (onto && !this.canEnter(level, next.x, next.y)) return null;
+    return level.moveCreature(this, next.x, next.y);
   }
 
   // A random step. Stumbling into the player still counts as an attack.

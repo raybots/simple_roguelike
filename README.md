@@ -3,7 +3,8 @@
 A simple roguelike with a character, enemies and a procedurally generated cave to move about.
 Graphics are ASCII characters.
 
-Find the stairs on each level and see how deep you can get before something kills you.
+Find the stairs on each level and fight your way down to depth 10, where the Sun Stone waits,
+guarded by something that eats light. Take it and you win.
 
 Your torch is everything. It lights what you can see, it burns down as you walk, and its
 light shrinks as the fuel runs low. You can also see anything lit by a brazier or a goblin's
@@ -27,6 +28,7 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | Douse or relight your torch | `t` |
 | Pick a relic | `1` `2` `3` |
 | Sound on or off | `m` |
+| Set the grass next to you alight | `f` |
 | Play again after dying | Enter |
 
 ## What's in the caves
@@ -43,7 +45,20 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | `g` | Goblin | Appears from depth 2. Hits for 2. Carries a torch, so you'll see its light first. |
 | `O` | Ogre | Appears from depth 4. Lumbers, then raises its club and smashes three tiles next turn. Step out of the red. |
 | `:` | Chasm | From depth 2. Jump in to drop a level at once, for 3 damage. |
+| `&` | The Lightless | Guards the Sun Stone on depth 10. Every light near it shrinks to an ember. |
+| `☼` | Sun Stone | Take it to win. The one light the Lightless can't eat. |
+| `"` | Grass | Burns. Fire `^` spreads through it, hurts anything standing in it, and leaves ash `,`. |
+| `~` | Water | Slows you down, so monsters get an extra move, and may put your torch out. |
+| `♣` | Fungus | Glows faintly, lighting the dark around it. |
+| `†` | Bones | A past adventurer's remains, with the potions they never drank. |
 | `x` | Corpse | |
+
+Each level past the first rolls a cave type: plain caves, overgrown (grass everywhere, so mind the
+fire), flooded, fungal (glowing) or crystal (walls throw your torchlight 3 tiles further).
+
+Monsters have lives of their own. Rats flee from ogres, goblins pick up potions and oil before you
+can and drop them when they die, goblin torches can set grass alight, and an ogre's smash hits
+whatever stands in the red, friend or foe.
 
 Small marks over a monster show what it knows: `z` asleep, `?` has just noticed you, `!` hunting.
 

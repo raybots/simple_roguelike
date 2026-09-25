@@ -146,8 +146,14 @@ export class DomUI {
         }
       }),
     );
-    this.mapWrap.style.setProperty("--torch", game.player.torchRadius / 8);
+    this.mapWrap.style.setProperty("--torch", game.torchRadius / 8);
     this.mapWrap.classList.toggle("doused", !game.player.torchBurning);
+    const biome = `biome-${game.level.biome}`;
+    if (this.biomeClass !== biome) {
+      if (this.biomeClass) this.mapWrap.classList.remove(this.biomeClass);
+      this.mapWrap.classList.add(biome);
+      this.biomeClass = biome;
+    }
 
     this.renderHud();
     this.renderLog();
@@ -166,7 +172,7 @@ export class DomUI {
     this.hpText.textContent = `${hp}/${player.maxHp}`;
     this.hud.classList.toggle("low", ratio <= 0.3 && hp > 0);
     this.fuelFill.style.setProperty("--fuel", player.fuel / player.maxFuel);
-    this.fuelText.textContent = player.torchBurning ? `r${player.torchRadius}` : player.fuel > 0 ? "out" : "dead";
+    this.fuelText.textContent = player.torchBurning ? `r${this.game.torchRadius}` : player.fuel > 0 ? "out" : "dead";
     this.hud.classList.toggle("fuel-low", player.fuel <= 100);
     this.potions.textContent = player.potions;
     this.potions.parentElement.classList.toggle("empty", player.potions === 0);
@@ -249,11 +255,15 @@ export class DomUI {
   }
 
   renderOverlay() {
+    const over = this.game.state === "dead" || this.game.state === "won";
     const dead = this.game.state === "dead";
     this.root.classList.toggle("dead", dead);
-    if (dead === !this.overlay.hidden) return;
-    this.overlay.hidden = !dead;
-    if (!dead) return;
+    this.overlay.classList.toggle("won", this.game.state === "won");
+    if (over === !this.overlay.hidden) return;
+    this.overlay.hidden = !over;
+    if (!over) return;
+    this.overlay.querySelector(".rip").textContent = dead ? "✝" : "☼";
+    this.overlay.querySelector(".again").lastChild.textContent = dead ? " to rise again" : " to descend once more";
     const { title, line } = epitaph(this.game);
     this.overlay.querySelector(".epitaph-title").textContent = title;
     this.overlay.querySelector(".epitaph-line").textContent = line;
@@ -282,9 +292,9 @@ export class DomUI {
     for (const e of effects) {
       if (e.type === "hit") {
         const pos = at(e);
-        const cls = e.by === "monster" ? "hurt" : e.sneak ? "sneak" : "deal";
+        const cls = e.by === "monster" || e.by === "fire" ? "hurt" : e.sneak ? "sneak" : "deal";
         this.floater(pos, e.killed && e.by !== "monster" ? `${e.amount}✝` : `${e.amount}`, cls);
-        this.sparks(pos, e.by === "monster" ? "blood" : "spark", e.killed ? 12 : 7);
+        this.sparks(pos, e.by === "fire" ? "ember" : e.by === "monster" ? "blood" : "spark", e.killed ? 12 : 7);
         if (e.amount >= IMPACT_DAMAGE || e.killed) impact = true;
       } else if (e.type === "heal" && e.amount > 0) {
         this.floater(at(e), `+${e.amount}`, "heal");
@@ -337,14 +347,14 @@ export class DomUI {
 
   act(action) {
     const { game } = this;
-    const wasPlaying = game.state !== "dead";
+    const wasPlaying = game.state !== "dead" && game.state !== "won";
     if (!game.playerAction(action)) return;
-    if (wasPlaying && game.state === "dead") this.recordRun();
+    if (wasPlaying && (game.state === "dead" || game.state === "won")) this.recordRun();
     if (action === "restart") this.newBest = false;
     this.render();
     this.spawnEffects(game.effects);
     this.audio?.setDepth(game.depth);
-    this.audio?.setTorch(game.player.torchRadius);
+    this.audio?.setTorch(game.torchRadius);
     this.audio?.play(game.effects);
   }
 

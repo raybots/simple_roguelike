@@ -29,7 +29,7 @@ export const STATE_MARKERS = { asleep: "z", alert: "?", hunting: "!" };
 
 // Colour-codes log messages by what happened.
 export function messageTone(text) {
-  if (/ you for /.test(text) || /^You die/.test(text) || /on you for/.test(text)) return "hurt";
+  if (/ you for /.test(text) || /^You die/.test(text) || /on you for/.test(text) || /^You burn/.test(text)) return "hurt";
   if (/^You kill/.test(text)) return "kill";
   if (/^You hit/.test(text)) return "hit";
   if (/potion/.test(text) && !/no potions/.test(text)) return "potion";
@@ -37,15 +37,30 @@ export function messageTone(text) {
   if (/notices you|raises its club/.test(text)) return "warn";
   if (/^You take the/.test(text)) return "relic";
   if (/chasm/.test(text)) return "depth";
+  if (/Sun Stone/.test(text)) return "relic";
+  if (/burn|grass|alight|catches/.test(text)) return "fire";
+  if (/snatches|flees|wade|water|fungus|[Cc]rystal/.test(text)) return "plain";
   if (/bones of a past/.test(text)) return "relic";
   if (/torch|oil|brazier|[Dd]arkness/.test(text)) return "fire";
   if (/descend|stairs down/.test(text)) return "depth";
   return "plain";
 }
 
-// Returns an epitaph for the death screen.
+function relicsText(n) {
+  return n === 0 ? "no relics at all" : `${n} ${n === 1 ? "relic" : "relics"}`;
+}
+
+// Returns an epitaph for the death or victory screen.
 export function epitaph(game) {
-  const cause = game.killedBy ? `Slain by a ${game.killedBy}` : "Slain";
+  const turnsText = `${game.turn} ${game.turn === 1 ? "turn" : "turns"}`;
+  if (game.state === "won") {
+    return {
+      title: "The Sun Rises Below",
+      line: `Ray carried the Sun Stone out of the deep after ${turnsText}, bearing ${relicsText(game.player.relics.length)}.`,
+    };
+  }
+  const causes = { flames: "Burned alive", Lightless: "Devoured by the Lightless" };
+  const cause = causes[game.killedBy] ?? (game.killedBy ? `Slain by a ${game.killedBy}` : "Slain");
   const turns = `${game.turn} ${game.turn === 1 ? "turn" : "turns"}`;
   return { title: "Here lies Ray", line: `${cause} on depth ${game.depth}, after ${turns}.` };
 }

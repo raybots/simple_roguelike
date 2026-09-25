@@ -11,8 +11,11 @@ import { Monster } from "./monster.js";
 // - fearsLight: won't enter brazier light
 // - stride: only moves every Nth turn (it can still wind up and smash every turn)
 // - telegraph: winds up for a turn, marking the tiles it will smash, before hitting
+// - fears: flees from this monster type when it's close
+// - collects: goes after items it can see, and drops them when it dies
+// - eatsLight: smothers every light within this many tiles
 export const MONSTER_TYPES = {
-  rat: { name: "rat", glyph: "r", hp: 2, damage: 1, verb: "bites", minDepth: 1, weight: 10, range: 20 },
+  rat: { name: "rat", glyph: "r", hp: 2, damage: 1, verb: "bites", minDepth: 1, weight: 10, range: 20, fears: "ogre" },
   bat: {
     name: "bat",
     glyph: "b",
@@ -26,7 +29,7 @@ export const MONSTER_TYPES = {
     remembers: false,
     fearsLight: true,
   },
-  goblin: { name: "goblin", glyph: "g", hp: 6, damage: 2, verb: "hits", minDepth: 2, weight: 6, range: 12, torch: 3 },
+  goblin: { name: "goblin", glyph: "g", hp: 6, damage: 2, verb: "hits", minDepth: 2, weight: 6, range: 12, torch: 3, collects: true },
   ogre: {
     name: "ogre",
     glyph: "O",
@@ -38,6 +41,19 @@ export const MONSTER_TYPES = {
     range: 20,
     stride: 2,
     telegraph: true,
+  },
+  // The guardian of the deepest level. Never spawns at random.
+  lightless: {
+    name: "Lightless",
+    glyph: "&",
+    hp: 40,
+    damage: 5,
+    verb: "rends",
+    minDepth: Infinity,
+    weight: 0,
+    range: 30,
+    telegraph: true,
+    eatsLight: 6,
   },
 };
 

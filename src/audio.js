@@ -124,6 +124,8 @@ export function createAudio() {
         tone({ freq: e.sneak ? 900 : 520, to: 140, type: "square", duration: 0.09, gain: 0.08 });
         noise({ duration: 0.08, gain: 0.18, filter: 2400, q: 1.2 });
         if (e.killed) tone({ freq: 90, to: 40, type: "sine", duration: 0.35, gain: 0.35, at: 0.02 });
+      } else if (e.by === "fire") {
+        noise({ duration: 0.25, gain: 0.15, filter: 2500, q: 0.6 });
       } else {
         tone({ freq: 160, to: 55, type: "sawtooth", duration: 0.25, gain: 0.22 });
         noise({ duration: 0.18, gain: 0.25, filter: 600, q: 0.7 });
@@ -163,6 +165,14 @@ export function createAudio() {
       tone({ freq: 110, to: 36, type: "sine", duration: 3, gain: 0.25 });
     },
     restart: () => tone({ freq: 196, to: 392, type: "sine", duration: 0.8, gain: 0.1, attack: 0.2 }),
+    ignite: () => {
+      noise({ duration: 1.2, gain: 0.3, filter: 300, to: 4000, q: 0.5, attack: 0.05 });
+      tone({ freq: 90, to: 60, type: "sawtooth", duration: 1, gain: 0.06 });
+    },
+    win: () =>
+      [262, 330, 392, 523, 659, 784, 1047].forEach((f, i) =>
+        tone({ freq: f, type: i % 2 ? "triangle" : "sine", duration: 2.5, gain: 0.07, at: i * 0.12, attack: 0.08 }),
+      ),
   };
 
   return {

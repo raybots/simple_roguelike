@@ -464,6 +464,83 @@ h1 span {
   text-shadow: 0 0 6px #fff, 0 0 18px var(--torch), 0 0 36px var(--ember);
 }
 
+/* Ground cover. */
+#map .terrain.k-grass {
+  color: color-mix(in oklab, #b8c46a calc(var(--l) * 100%), #1d2010);
+}
+#map .terrain.k-water {
+  color: color-mix(in oklab, #6fc3ff calc(var(--l) * 100%), #0a1a2a);
+  background: rgba(20, 80, 140, calc(0.1 + var(--l) * 0.18));
+  animation: ripple 2.6s ease-in-out infinite;
+}
+#map .terrain.k-fungus {
+  color: #9dffcf;
+  text-shadow: 0 0 8px #3dffa0, 0 0 18px rgba(60, 255, 160, 0.5);
+  animation: spore 3s ease-in-out infinite;
+}
+#map .terrain.k-ash {
+  color: color-mix(in oklab, #6b625c calc(var(--l) * 100%), #1a1716);
+}
+
+@keyframes ripple {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(1.5px); }
+}
+@keyframes spore {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+/* Fire. */
+#map .fire {
+  color: #fff3b0;
+  font-weight: 700;
+  background: radial-gradient(circle at 50% 70%, rgba(255, 120, 20, 0.85), rgba(200, 40, 0, 0.35) 60%, transparent 75%);
+  text-shadow: 0 0 6px #ffcc40, 0 0 14px #ff6a00, 0 0 30px #ff3000;
+  animation: burn 0.35s steps(3) infinite alternate;
+}
+
+@keyframes burn {
+  0% { transform: translateY(0) scaleY(1); filter: brightness(1); }
+  50% { transform: translateY(-1px) scaleY(1.15); filter: brightness(1.35); }
+  100% { transform: translateY(0) scaleY(0.95); filter: brightness(1.1); }
+}
+
+/* The Sun Stone and its guardian. */
+#map .item.k-sun {
+  color: #fffbe0;
+  font-size: 1.2em;
+  text-shadow: 0 0 8px #fff, 0 0 20px #ffd24a, 0 0 50px #ffae00, 0 0 90px rgba(255, 190, 40, 0.7);
+  animation: sunpulse 1.8s ease-in-out infinite;
+}
+@keyframes sunpulse {
+  50% { transform: scale(1.18) rotate(12deg); }
+}
+#map .k-lightless {
+  color: #0a0a0a;
+  font-size: 1.25em;
+  text-shadow: 0 0 2px #b0a0ff, 0 0 10px #6a4cff, 0 0 26px #2a0a80;
+  animation: void-throb 1.4s ease-in-out infinite;
+}
+@keyframes void-throb {
+  50% { text-shadow: 0 0 4px #d0c0ff, 0 0 18px #7a5cff, 0 0 44px #3a10b0; }
+}
+
+/* Biome tints on walls. */
+.biome-crystal #map .wall {
+  color: color-mix(in oklab, #d8f4ff calc(var(--l) * 100%), #1a2a3a);
+  text-shadow: 0 0 calc(var(--l) * 12px) rgba(140, 220, 255, calc(var(--l) * 0.7));
+}
+.biome-fungal #map .wall {
+  color: color-mix(in oklab, #c6e0b0 calc(var(--l) * 100%), #1a2a1e);
+}
+.biome-flooded #map .wall {
+  color: color-mix(in oklab, #bcd6d8 calc(var(--l) * 100%), #13262a);
+}
+.biome-overgrown #map .wall {
+  color: color-mix(in oklab, #d6c890 calc(var(--l) * 100%), #2a2614);
+}
+
 /* Chasms: a hole in the world with a faint violet updraft. */
 #map .chasm {
   color: #cfa8ff;
@@ -791,6 +868,24 @@ h1 span {
   display: none;
 }
 
+#overlay.won {
+  background: radial-gradient(ellipse at center, rgba(255, 200, 90, 0.45), rgba(40, 20, 4, 0.92) 70%);
+  backdrop-filter: brightness(1.6) blur(1px);
+}
+#overlay.won .stone {
+  background: linear-gradient(180deg, #3a2a14, #1a1208);
+  box-shadow: inset 0 1px 0 #8a6a30, 0 0 0 1px #6a5020, 0 0 80px rgba(255, 190, 60, 0.5);
+}
+#overlay.won .rip {
+  color: #fff3c0;
+  font-size: 40px;
+  text-shadow: 0 0 20px #ffd24a, 0 0 60px #ffae00;
+}
+#overlay.won .epitaph-title {
+  color: #fff1c8;
+  text-shadow: 0 0 20px rgba(255, 200, 80, 0.8);
+}
+
 .stone {
   text-align: center;
   padding: 34px 38px 28px;
@@ -930,6 +1025,9 @@ h1 span {
 .g-oil { color: var(--oil); text-shadow: 0 0 8px var(--oil); }
 .g-chasm { color: #b58cff; }
 .g-danger { color: #ff6a5a; }
+.g-grass { color: #b8c46a; }
+.g-water { color: #6fc3ff; }
+.g-sun { color: #fff3c0; text-shadow: 0 0 8px #ffd24a; }
 
 #help button {
   padding: 0;
