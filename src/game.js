@@ -33,6 +33,10 @@ export const GOBLIN_IGNITE_CHANCE = 0.12;
 export const WATER_DOUSE_CHANCE = 0.25;
 // Inside the Lightless's reach, every light shrinks to this.
 export const SMOTHERED_RADIUS = 1;
+// Each lit brazier around the Sun Stone pushes the Lightless's reach back this far.
+const RING_WARMTH = 1.5;
+// Rests beside a thawing Lightless before it becomes a friend.
+export const COMFORT_NEEDED = 3;
 // The Sun Stone shines, and it's the one light the Lightless can't eat.
 export const SUN_RADIUS = 4;
 export const THROW_RANGE = 6;
@@ -168,9 +172,26 @@ export class Game {
     return this.level.monsters.find((m) => m.alive && m.eatsLight) ?? null;
   }
 
+  // The braziers ringing the Sun Stone on the final level. If a cramped cave left no room
+  // for them, every brazier on the level counts instead, so the ending is always reachable.
+  get ringBraziers() {
+    const all = this.level.braziers();
+    const ring = all.filter((b) => b.ring);
+    return ring.length > 0 ? ring : all;
+  }
+
+  // How far the Lightless's cold reaches. In the cosy game, each lit ring brazier pushes it back.
+  get darkReach() {
+    const eater = this.lightEater;
+    if (!eater) return 0;
+    if (this.night) return eater.eatsLight;
+    const lit = this.ringBraziers.filter((b) => b.lit).length;
+    return Math.max(0, eater.eatsLight - lit * RING_WARMTH);
+  }
+
   inDarkAura(x, y) {
     const eater = this.lightEater;
-    return !!eater && Math.hypot(x - eater.x, y - eater.y) <= eater.eatsLight;
+    return !!eater && Math.hypot(x - eater.x, y - eater.y) <= this.darkReach;
   }
 
   // Your torch radius, after crystal walls and the Lightless have had their say.
@@ -577,6 +598,12 @@ export class Game {
       const added = this.player.addFuel(OIL_FUEL);
       this.log(`You top up your torch with oil. (+${added})`);
     } else if (item.type === "sun") {
+      const guardian = this.level.monsters.find((m) => m.alive && m.type === "lightless");
+      if (!this.night && guardian && !guardian.friendly) {
+        this.level.items.set(this.player.x, this.player.y, item);
+        this.log("You can't bring yourself to take it from something so cold and alone. Warm it first.");
+        return;
+      }
       this.win();
     } else if (item.type === "crust" || item.type === "coin" || item.type === "mushroom") {
       const key = { crust: "crusts", coin: "coins", mushroom: "mushrooms" }[item.type];
@@ -618,6 +645,7 @@ export class Game {
     if (this.night) this.log("You light the brazier. Warm light floods the cave.");
     else if (lit < total) this.log(`You coax the brazier to life. Warmth spills across the stone. (${lit} of ${total})`);
     if (!this.night && lit === total) this.caveSighs();
+    if (!this.night && this.ringBraziers.some((b) => b.x === x && b.y === y)) this.warmTheLightless();
     if (this.player.hasRelic("lantern")) {
       const healed = this.player.heal(5);
       if (healed > 0) {
@@ -628,11 +656,50 @@ export class Game {
     return this.endTurn();
   }
 
+  // Each ring brazier lit around the Sun Stone warms its guardian a little more.
+  warmTheLightless() {
+    const eater = this.level.monsters.find((m) => m.alive && m.type === "lightless");
+    if (!eater || eater.friendly) return;
+    const ring = this.ringBraziers;
+    const lit = ring.filter((b) => b.lit).length;
+    if (lit < ring.length) {
+      this.log(`The cold draws back a little. (${lit} of ${ring.length} around the Sun Stone)`);
+      return;
+    }
+    eater.state = "thawing";
+    eater.windup = null;
+    this.comfort = 0;
+    this.log("The Lightless shivers, and leans toward the warmth. Sit with it a while (.).");
+    this.effect("thaw", { x: eater.x, y: eater.y });
+  }
+
+  // Resting beside a thawing Lightless comforts it, until it's cold no more.
+  comfortTheLightless() {
+    const { player } = this;
+    const eater = this.level.monsters.find((m) => m.alive && m.state === "thawing");
+    if (!eater || Math.max(Math.abs(eater.x - player.x), Math.abs(eater.y - player.y)) > 1) return false;
+    this.comfort = (this.comfort ?? 0) + 1;
+    const lines = [
+      "You sit down beside the Lightless. It's so very cold.",
+      "It edges closer to you, and closer to the fire.",
+    ];
+    if (this.comfort < COMFORT_NEEDED) {
+      this.log(lines[this.comfort - 1] ?? lines.at(-1));
+      return true;
+    }
+    eater.state = "friendly";
+    eater.eatsLight = 0;
+    this.log("The Lightless was only lonely. It glows, faintly and warmly, and nudges the Sun Stone toward you.");
+    this.effect("befriend", { kind: "lightless", x: eater.x, y: eater.y });
+    return true;
+  }
+
   // Resting: waiting by a lit brazier with nothing hunting you mends you and refills
   // your torch. Anywhere else, waiting just lets a turn pass.
   rest() {
     const { player } = this;
     this.rested = true;
+    if (!this.night) this.comfortTheLightless();
     if (!this.night && this.byTheFire && !this.hunted) {
       const healed = player.heal(REST_HEAL);
       const fueled = player.hasTorch ? player.addFuel(REST_FUEL) : 0;
@@ -651,7 +718,7 @@ export class Game {
     player.heal(player.maxHp);
     if (player.hasTorch) player.addFuel(player.maxFuel);
     for (const m of level.monsters) {
-      if (m.alive && m.state !== "friendly") {
+      if (m.alive && m.state !== "friendly" && m.state !== "thawing" && !m.eatsLight) {
         m.state = "asleep";
         m.drowsy = SETTLED_TURNS;
       }
@@ -697,7 +764,11 @@ export class Game {
 
   win() {
     this.state = "won";
-    this.log(`You lift the Sun Stone. Light floods the deep. You won in ${plural(this.turn, "turn")}!`);
+    this.log(
+      this.night
+        ? `You lift the Sun Stone. Light floods the deep. You won in ${plural(this.turn, "turn")}!`
+        : `You lift the Sun Stone. Light floods the deep, and the Lightless glows warm beside you.`,
+    );
     this.effect("win");
   }
 
@@ -964,8 +1035,9 @@ export class Game {
         this.log(burn.killed ? `The ${burn.target.name} burns to death.` : `The ${burn.target.name} burns.`);
       }
     }
+    // At Night the Lightless snuffs braziers near it. The cosy Lightless only dims them.
     let snuffed = false;
-    for (const b of level.braziers()) {
+    for (const b of this.night ? level.braziers() : []) {
       if (b.lit && this.inDarkAura(b.x, b.y)) {
         level.features.get(b.x, b.y).lit = false;
         snuffed = true;

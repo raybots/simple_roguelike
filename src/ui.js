@@ -84,15 +84,25 @@ export class DomUI {
       this.modeLink.textContent = "Play today's cave";
     }
     this.modeLink.href = this.daily ? "#" : "#daily";
-    this.modeLink.addEventListener("click", (event) => {
+    // Switching modes reloads the page with a different #hash (or none).
+    const switchTo = (hash) => (event) => {
       event.preventDefault();
       if (location.search) {
-        location.assign(location.pathname + (this.daily ? "" : "#daily"));
+        location.assign(location.pathname + (hash ? `#${hash}` : ""));
       } else {
-        location.hash = this.daily ? "" : "daily";
+        location.hash = hash;
         location.reload();
       }
-    });
+    };
+    this.modeLink.addEventListener("click", switchTo(this.daily ? "" : "daily"));
+    const night = this.game.night;
+    const nightToggle = this.root.querySelector("#night-toggle");
+    nightToggle.textContent = night ? "Back to the Hearth" : "Night mode";
+    nightToggle.href = night ? "#" : "#night";
+    nightToggle.addEventListener("click", switchTo(night ? "" : "night"));
+    this.root.querySelector(".night-link")?.addEventListener("click", switchTo("night"));
+    if (night) this.kicker.textContent = "night mode · no resting, no second chances";
+    document.body.classList.toggle("night", night);
 
     // The start card: a click or key press gives the page focus and lets sound play.
     this.start = this.root.querySelector("#start");
@@ -587,6 +597,8 @@ export class DomUI {
         impact = true;
       } else if (e.type === "brazier") {
         this.sparks(at(e), "ember", 16);
+      } else if (e.type === "thaw") {
+        this.sparks(at(e), "ember", 20);
       } else if (e.type === "pet" || e.type === "befriend") {
         this.floater(at(e), "♥", "heart");
       } else if (e.type === "ember") {

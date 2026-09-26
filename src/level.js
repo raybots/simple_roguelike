@@ -33,7 +33,7 @@ export class Level {
     this.torchThief = null;
     // Dead monsters stay in this list so they can be drawn as corpses.
     this.monsters = [];
-    for (const f of features) this.features.set(f.x, f.y, { type: f.type, lit: !!f.lit });
+    for (const f of features) this.features.set(f.x, f.y, { type: f.type, lit: !!f.lit, ring: !!f.ring });
     for (const spec of monsters) {
       this.addMonster(createMonster(spec.type, spec.x, spec.y, depth, spec.state ?? "idle"));
     }
@@ -75,7 +75,7 @@ export class Level {
   braziers() {
     const list = [];
     this.features.forEach((x, y, f) => {
-      if (f?.type === "brazier") list.push({ x, y, lit: f.lit });
+      if (f?.type === "brazier") list.push({ x, y, lit: f.lit, ring: !!f.ring });
     });
     return list;
   }

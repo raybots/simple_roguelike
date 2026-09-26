@@ -37,7 +37,8 @@ export function messageTone(text) {
   if (/notices you|raises its club/.test(text)) return "warn";
   if (/^You take the/.test(text)) return "relic";
   if (/chasm/.test(text)) return "depth";
-  if (/Sun Stone/.test(text)) return "relic";
+  if (/Sun Stone|Lightless (was|shivers)|glows, faintly/.test(text)) return "relic";
+  if (/sit down beside|edges closer|cold draws back/.test(text)) return "fire";
   if (/sighs|warm at last/.test(text)) return "relic";
   if (/warm your hands|rest by the fire|coax the brazier|crackles happily/.test(text)) return "fire";
   if (/too tired|wakes at the Hearth/.test(text)) return "depth";
@@ -69,6 +70,12 @@ export function epitaph(game) {
     };
   }
   if (game.state === "won") {
+    if (!game.night) {
+      return {
+        title: "The Sun Rises Below",
+        line: `${HERO_NAME} warmed the Lightless and carried the Sun Stone home, with a new friend glowing close behind, after ${turnsText}.`,
+      };
+    }
     return {
       title: "The Sun Rises Below",
       line: `${HERO_NAME} carried the Sun Stone out of the deep after ${turnsText}, bearing ${relicsText(game.player.relics.length)}.`,

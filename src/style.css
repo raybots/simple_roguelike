@@ -549,6 +549,13 @@ h1 span {
   text-shadow: 0 0 2px #b0a0ff, 0 0 10px #6a4cff, 0 0 26px #2a0a80;
   animation: void-throb 1.4s ease-in-out infinite;
 }
+/* The Lightless, warmed: its cold violet turns to a soft gold glow. */
+#map .k-lightless[data-m="♥"] {
+  color: #ffe9b0;
+  text-shadow: 0 0 6px #ffd27a, 0 0 18px rgba(255, 190, 90, 0.8), 0 0 36px rgba(255, 150, 60, 0.5);
+  animation: none;
+}
+
 @keyframes void-throb {
   50% { text-shadow: 0 0 4px #d0c0ff, 0 0 18px #7a5cff, 0 0 44px #3a10b0; }
 }
@@ -1431,6 +1438,25 @@ body.touch #help > span:not(.aside):not(.sound) {
 }
 #help button[aria-pressed="true"] {
   color: var(--torch);
+}
+
+#night-toggle {
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--faint);
+}
+body.night #night-toggle {
+  color: var(--torch);
+}
+
+.night-link {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--faint);
+  text-decoration: none;
+}
+.night-link:hover {
+  color: var(--muted);
 }
 
 #mode-link {
