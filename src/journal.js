@@ -16,6 +16,10 @@ export const JOURNAL = {
     title: "Ogre",
     note: "Slow, grumpy and heavy-handed. Raises its club before it swings: step back, not sideways.",
   },
+  cat: {
+    title: "The Cat",
+    note: "Found on depth 2, hungry and alone. Now it follows you everywhere and warns you when something's near.",
+  },
   lightless: {
     title: "The Lightless",
     note: "It drinks every light near it. It doesn't seem angry. It seems cold.",

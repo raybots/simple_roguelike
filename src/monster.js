@@ -37,6 +37,7 @@ export class Monster extends Creature {
     fears = null,
     collects = false,
     eatsLight = 0,
+    sleepsInDark = false,
     state = "idle",
   } = {}) {
     super({ x, y, glyph, name, hp, damage });
@@ -55,6 +56,15 @@ export class Monster extends Creature {
     this.collects = collects;
     this.eatsLight = eatsLight;
     this.loot = [];
+    this.sleepsInDark = sleepsInDark;
+    // Friendly creatures that trot along after Wick (the cat, befriended rats).
+    this.follows = false;
+    this.companion = false;
+    // Companion moods: curled up by a resting Wick, waiting somewhere after a scare,
+    // or turns left of ears-pricked warning.
+    this.curled = false;
+    this.waiting = false;
+    this.warning = 0;
     // A spot an idle monster wanders over to look at, like a torch landing nearby.
     this.investigate = null;
     // Tiles this monster will smash on its next turn, or null.
@@ -77,6 +87,10 @@ export class Monster extends Creature {
 
   get unaware() {
     return this.state !== "hunting";
+  }
+
+  get friendly() {
+    return this.state === "friendly";
   }
 
   hasLineOfSightTo(level, target) {
@@ -144,6 +158,9 @@ export class Monster extends Creature {
   // ctx.playerLit says whether the player is standing in any light.
   takeTurn(level, player, rng, ctx = {}) {
     if (!this.alive) return null;
+    if (this.state === "friendly") return this.friendlyTurn(level, player, ctx);
+    // A stray waits to be found.
+    if (this.state === "shy") return null;
     const playerLit = ctx.playerLit ?? true;
     const darkRange = ctx.darkNotice ?? DARK_NOTICE_RANGE;
     const notices = () => this.notices(level, player, playerLit, darkRange);
@@ -157,6 +174,7 @@ export class Monster extends Creature {
       this.drowsy--;
       return null;
     }
+    if (this.state === "asleep" && this.sleepsInDark && !playerLit) return null;
     if (this.state === "asleep") {
       const close = distance(this.x, this.y, player.x, player.y) <= WAKE_RANGE;
       if (notices() && (close || rng?.chance(0.1))) this.state = "alert";
@@ -239,6 +257,20 @@ export class Monster extends Creature {
     }
     this.windup = null;
     return { smash: true, hits };
+  }
+
+  // Friends never attack. Followers trot after Wick and curl up when Wick rests.
+  friendlyTurn(level, player, ctx) {
+    if (this.warning > 0) this.warning--;
+    if (!this.follows) return null;
+    const d = Math.abs(player.x - this.x) + Math.abs(player.y - this.y);
+    if (this.waiting) {
+      if (d > 4) return null;
+      this.waiting = false;
+    }
+    this.curled = !!ctx.playerRested && d <= 3;
+    if (this.curled || d <= 2) return null;
+    return this.stepToward(level, player, true);
   }
 
   // One step along the shortest path. Unless `onto` is set, the goal tile itself is

@@ -14,6 +14,7 @@ import { Monster } from "./monster.js";
 // - fears: flees from this monster type when it's close
 // - collects: goes after items it can see, and drops them when it dies
 // - eatsLight: smothers every light within this many tiles
+// - sleepsInDark: stays asleep unless you're lit
 export const MONSTER_TYPES = {
   rat: { name: "rat", glyph: "r", hp: 2, damage: 1, verb: "bites", minDepth: 1, weight: 10, range: 20, fears: "ogre" },
   bat: {
@@ -28,6 +29,7 @@ export const MONSTER_TYPES = {
     erratic: 0.5,
     remembers: false,
     fearsLight: true,
+    sleepsInDark: true,
   },
   goblin: { name: "goblin", glyph: "g", hp: 6, damage: 2, verb: "hits", minDepth: 2, weight: 6, range: 12, torch: 3, collects: true },
   ogre: {
@@ -42,6 +44,8 @@ export const MONSTER_TYPES = {
     stride: 2,
     telegraph: true,
   },
+  // Wick's companion. Found on depth 2, never spawns at random, never comes to harm.
+  cat: { name: "cat", glyph: "c", hp: 99, damage: 0, verb: "headbutts", minDepth: Infinity, weight: 0, range: 0 },
   // The guardian of the deepest level. Never spawns at random.
   lightless: {
     name: "Lightless",
@@ -83,6 +87,17 @@ export function createMonster(type, x, y, depth = 1, state = "idle") {
 
 export function monsterCount(depth, openCells) {
   return Math.min(6 + 2 * depth, Math.floor(openCells * 0.1));
+}
+
+// Small comforts scattered through each cosy level: crusts for rats, coins for goblins,
+// glowcaps for stew.
+export function comfortItems(rng, night) {
+  if (night) return [];
+  const items = ["crust", "coin", "mushroom"];
+  if (rng.chance(0.6)) items.push("crust");
+  if (rng.chance(0.4)) items.push("coin");
+  if (rng.chance(0.4)) items.push("mushroom");
+  return items;
 }
 
 export function potionCount(depth) {

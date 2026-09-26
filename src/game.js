@@ -1,3 +1,4 @@
+import { createMonster } from "./bestiary.js";
 import { BIOMES } from "./biomes.js";
 import { BRAZIER_RADIUS, FIRE_RADIUS, FUNGUS_RADIUS, Level } from "./level.js";
 import { lightLevel } from "./light.js";
@@ -51,6 +52,13 @@ const COSY_BRAZIER_COST = 5;
 const SETTLED_TURNS = 20;
 // Chance that a level has a keepsake tucked away somewhere.
 const KEEPSAKE_CHANCE = 0.6;
+// The cat turns up on this depth if you don't have one yet.
+export const CAT_DEPTH = 2;
+// The cat hears unseen creatures hunting within this range.
+const CAT_HEARING = 7;
+const STEW_HEAL = 12;
+const STEW_GLOW_TURNS = 30;
+const STEW_GLOW_RADIUS = 2;
 
 const FUEL_WARNINGS = [
   { at: 100, text: "Your torch burns low." },
@@ -64,11 +72,22 @@ const FUEL_WARNINGS = [
 //   bones - { depth, potions } left by a previous death, found on that depth
 //   night - the old, unforgiving rules: death is final and the caves are darker
 //   ownedKeepsakes - keepsakes already on the Hearth's shelf, so they aren't found twice
+//   hasCat - Wick already has the cat from an earlier run
 export class Game {
-  constructor({ width = 60, height = 60, rng, seed, bones = null, night = false, ownedKeepsakes = [] } = {}) {
+  constructor({
+    width = 60,
+    height = 60,
+    rng,
+    seed,
+    bones = null,
+    night = false,
+    ownedKeepsakes = [],
+    hasCat = false,
+  } = {}) {
     this.width = width;
     this.height = height;
     this.night = night;
+    this.startsWithCat = hasCat && !night;
     this.ownedKeepsakes = ownedKeepsakes;
     this.seed = seed;
     this.rng = rng ?? createRng(seed);
@@ -82,6 +101,7 @@ export class Game {
     this.effects = [];
     this.bonesFound = false;
     this.player = new Player();
+    this.player.hasCat = this.startsWithCat;
     this.depth = 1;
     this.turn = 0;
     this.state = "playing";
@@ -113,6 +133,7 @@ export class Game {
     this.level.placeCreature(this.player, blueprint.playerStart.x, blueprint.playerStart.y);
     this.placeBones(blueprint);
     if (!this.night && this.rng.chance(KEEPSAKE_CHANCE)) this.placeKeepsake(8);
+    if (!this.night) this.placeCat();
     if (this.player.hasRelic("cartographer")) this.revealStairs();
     this.waded = false;
     this.updateVisibility();
@@ -158,6 +179,7 @@ export class Game {
     if (!player.torchBurning) return 0;
     const at = this.torchPosition;
     let radius = player.torchRadius + (BIOMES[this.level.biome]?.torch ?? 0);
+    if (player.stewTurns > 0) radius += STEW_GLOW_RADIUS;
     if (!player.hasTorch) radius = Math.min(radius, LOOSE_TORCH_RADIUS);
     if (at && this.inDarkAura(at.x, at.y)) radius = SMOTHERED_RADIUS;
     return radius;
@@ -181,6 +203,29 @@ export class Game {
     if (spot.length === 0) return;
     const { x, y } = this.rng.pick(spot);
     level.items.set(x, y, { type: "bones", potions: bones.potions });
+  }
+
+  // The cat comes along to every level once it's yours. Before that, a stray waits on depth 2.
+  placeCat() {
+    const { level, player } = this;
+    const near = player.hasCat ? [1, 2] : [6, 15];
+    if (!player.hasCat && this.depth !== CAT_DEPTH) return;
+    const spots = [];
+    level.walls.forEach((x, y, v) => {
+      const d = Math.abs(x - player.x) + Math.abs(y - player.y);
+      if (v === 0 && level.isPassable(x, y) && d >= near[0] && d <= near[1]) spots.push({ x, y });
+    });
+    if (spots.length === 0) return;
+    const { x, y } = this.rng.pick(spots);
+    const cat = createMonster("cat", x, y, 1, player.hasCat ? "friendly" : "shy");
+    cat.follows = player.hasCat;
+    cat.companion = true;
+    level.addMonster(cat);
+    if (!player.hasCat) this.log("You hear a small, hungry mew somewhere nearby.");
+  }
+
+  get cat() {
+    return this.level.monsters.find((m) => m.type === "cat" && m.alive) ?? null;
   }
 
   // Tucks an unfound keepsake onto a free floor tile at least `minDistance` from Wick.
@@ -335,6 +380,9 @@ export class Game {
     if (action === "torch") return this.toggleTorch();
     if (action === "ignite") return this.ignite();
     if (action === "throw") return this.aim();
+    if (action === "pet") return this.pet();
+    if (action === "cook") return this.cook();
+    if (action === "eat") return this.eat();
     return false;
   }
 
@@ -353,6 +401,13 @@ export class Game {
     }
 
     const target = this.level.creatureAt(x, y);
+    if (target?.friendly) {
+      this.level.swap(this.player, target);
+      this.effect("step");
+      return this.endTurn();
+    }
+    if (target?.state === "shy") return this.befriendCat(target);
+    if (target && !this.night && this.offerGift(target)) return this.endTurn();
     const sneak = target && target.unaware;
     const multiplier = sneak ? (this.player.hasRelic("shadowstep") ? SHADOWSTEP_MULTIPLIER : SNEAK_MULTIPLIER) : 1;
     const result = this.level.moveCreature(this.player, x, y, { multiplier });
@@ -363,6 +418,133 @@ export class Game {
     if (result.item) this.pickUp(result.item);
     if (result.moved && this.level.isStairs(x, y)) this.log("There are stairs down here. Press > to descend.");
     return this.endTurn();
+  }
+
+  // The stray on depth 2 comes along with you, for good.
+  befriendCat(cat) {
+    cat.state = "friendly";
+    cat.follows = true;
+    this.player.hasCat = true;
+    this.log("The cat sniffs your hand, headbutts it, and decides to come along.");
+    this.effect("befriend", { kind: "cat", x: cat.x, y: cat.y });
+    return this.endTurn();
+  }
+
+  // Walking into a creature while carrying the right gift offers it instead of fighting.
+  // Returns true if a gift was given.
+  offerGift(target) {
+    const { player } = this;
+    const friend = (text, follows = false) => {
+      target.state = "friendly";
+      target.follows = follows;
+      target.investigate = null;
+      this.log(text);
+      this.effect("befriend", { kind: target.type, x: target.x, y: target.y });
+      return true;
+    };
+    if (target.type === "rat" && player.crusts > 0) {
+      player.crusts--;
+      return friend("You offer a crust. The rat nibbles it, and decides you're alright. It trots along behind you.", true);
+    }
+    if (target.type === "goblin" && player.coins > 0) {
+      player.coins--;
+      const vial = player.potions <= player.fuel / 100;
+      if (vial) player.potions++;
+      else player.addFuel(OIL_FUEL);
+      return friend(
+        `The goblin bites your coin, grins, and hands over ${vial ? "a vial" : "a flask of oil"}. It leaves you in peace.`,
+      );
+    }
+    if (target.type === "ogre" && player.stews > 0) {
+      player.stews--;
+      target.windup = null;
+      return friend("The ogre slurps the stew, sighs a huge sigh, and curls up for a nap.");
+    }
+    return false;
+  }
+
+  // A scratch behind the ears, once per level, is good for you both.
+  pet() {
+    const { cat, player } = this;
+    if (!cat || !cat.friendly || Math.max(Math.abs(cat.x - player.x), Math.abs(cat.y - player.y)) > 1) {
+      this.log(cat?.friendly ? "The cat is too far away to pet." : "There's nobody here to pet.");
+      return true;
+    }
+    this.effect("pet", { x: cat.x, y: cat.y });
+    if (this.level.petted) {
+      this.log("The cat purrs, leaning into your hand.");
+      return true;
+    }
+    this.level.petted = true;
+    const healed = player.heal(1);
+    this.log(`You scratch the cat behind the ears. It purrs like a kettle.${healed ? " (+1)" : ""}`);
+    if (healed) this.effect("heal", { x: player.x, y: player.y, amount: healed });
+    return this.endTurn();
+  }
+
+  // Glowcaps simmered over a lit brazier make a stew: it heals, glows, and calms ogres.
+  cook() {
+    const { player } = this;
+    if (player.mushrooms === 0) {
+      this.log("You have nothing to cook. Glowcaps (♠) make a good stew.");
+      return true;
+    }
+    if (!this.byTheFire) {
+      this.log("You need to be by a lit brazier to cook.");
+      return true;
+    }
+    player.mushrooms--;
+    player.stews++;
+    this.log("You simmer a glowcap stew over the brazier. It smells wonderful. (e to eat, or give it to someone grumpy)");
+    this.effect("cook");
+    return this.endTurn();
+  }
+
+  eat() {
+    const { player } = this;
+    if (player.stews === 0) {
+      this.log("You don't have any stew.");
+      return true;
+    }
+    player.stews--;
+    player.stewTurns = STEW_GLOW_TURNS;
+    const healed = player.heal(STEW_HEAL);
+    this.log(`You eat the stew. It warms you right through, and your torch burns brighter. (+${healed})`);
+    this.effect("heal", { x: player.x, y: player.y, amount: healed });
+    return this.endTurn();
+  }
+
+  // The cat's ears prick up when something unseen is hunting nearby.
+  catWarns() {
+    const { cat, player } = this;
+    if (!cat?.follows) return;
+    for (const m of this.level.monsters) {
+      if (!m.alive || m.friendly || m.catWarned || this.isVisible(m.x, m.y)) continue;
+      if (m.state !== "hunting" && m.state !== "alert") continue;
+      if (Math.hypot(m.x - player.x, m.y - player.y) > CAT_HEARING) continue;
+      m.catWarned = true;
+      cat.warning = 3;
+      this.log("The cat's ears prick up. Something is close.");
+      this.effect("notice", { x: cat.x, y: cat.y });
+      return;
+    }
+  }
+
+  // When the cat gets caught in a blow or a fire it bolts, unhurt, and waits by the stairs.
+  catBolts() {
+    const { cat, level } = this;
+    if (!cat) return;
+    const home = level.stairs ?? { x: level.torch?.x ?? cat.x, y: level.torch?.y ?? cat.y };
+    const spots = [];
+    level.walls.forEach((x, y, v) => {
+      if (v === 0 && level.isPassable(x, y) && Math.abs(x - home.x) + Math.abs(y - home.y) <= 3) spots.push({ x, y });
+    });
+    if (spots.length > 0) {
+      const { x, y } = this.rng.pick(spots);
+      level.placeCreature(cat, x, y);
+    }
+    cat.waiting = true;
+    this.log("The cat yowls and bolts into the dark, unhurt. It'll wait for you by the stairs.");
   }
 
   reportAttack(result, sneak) {
@@ -396,6 +578,15 @@ export class Game {
       this.log(`You top up your torch with oil. (+${added})`);
     } else if (item.type === "sun") {
       this.win();
+    } else if (item.type === "crust" || item.type === "coin" || item.type === "mushroom") {
+      const key = { crust: "crusts", coin: "coins", mushroom: "mushrooms" }[item.type];
+      this.player[key]++;
+      const text = {
+        crust: "You pocket a crust of bread. Rats are fond of these.",
+        coin: "You pocket a shiny coin. Goblins love shiny things.",
+        mushroom: "You pick a glowcap. It would make a lovely stew over a fire (c).",
+      }[item.type];
+      this.log(text);
     } else if (item.type === "keepsake") {
       const keepsake = KEEPSAKES[item.id];
       if (!this.ownedKeepsakes.includes(item.id)) this.ownedKeepsakes.push(item.id);
@@ -441,6 +632,7 @@ export class Game {
   // your torch. Anywhere else, waiting just lets a turn pass.
   rest() {
     const { player } = this;
+    this.rested = true;
     if (!this.night && this.byTheFire && !this.hunted) {
       const healed = player.heal(REST_HEAL);
       const fueled = player.hasTorch ? player.addFuel(REST_FUEL) : 0;
@@ -555,7 +747,9 @@ export class Game {
     this.effect("throw", { path });
 
     const target = level.creatureAt(land.x, land.y);
-    if (target) {
+    if (target?.friendly) {
+      this.log(`Your torch lands beside the ${target.name}, who gives you a look.`);
+    } else if (target) {
       const { damage, killed } = level.strikeCreature(player, target, THROW_DAMAGE);
       this.log(killed ? `Your torch strikes the ${target.name} dead!` : `Your torch cracks into the ${target.name}.`);
       this.effect("hit", { x: land.x, y: land.y, amount: damage, killed, by: "player" });
@@ -679,6 +873,7 @@ export class Game {
 
   burnFuel() {
     const { player } = this;
+    if (player.stewTurns > 0) player.stewTurns--;
     if (!player.torchBurning) return;
     player.fuel--;
     const warning = FUEL_WARNINGS.find((w) => w.at === player.fuel);
@@ -698,6 +893,8 @@ export class Game {
     if (this.slowed && this.player.alive) this.monstersAct();
     this.slowed = false;
     this.worldActs();
+    this.catWarns();
+    this.rested = false;
     this.turn++;
     this.noticeNewCreatures();
     if (!this.player.alive) {
@@ -755,6 +952,10 @@ export class Game {
       }
     }
     for (const burn of level.updateFire(this.rng)) {
+      if (burn.spared) {
+        if (burn.target.companion) this.catBolts();
+        continue;
+      }
       this.effect("hit", { x: burn.target.x, y: burn.target.y, amount: burn.damage, killed: burn.killed, by: "fire" });
       if (burn.target === player) {
         this.log(`You burn! (-${burn.damage})`);
@@ -778,7 +979,11 @@ export class Game {
 
   monstersAct() {
     const darkNotice = this.player.hasRelic("hush") ? 1 : undefined;
-    const events = this.level.processMonsters(this.player, this.rng, { playerLit: this.playerLit, darkNotice });
+    const events = this.level.processMonsters(this.player, this.rng, {
+      playerLit: this.playerLit,
+      darkNotice,
+      playerRested: this.rested,
+    });
     for (const event of events) {
       const seen = this.isVisible(event.actor.x, event.actor.y);
       if (event.windup) {
@@ -808,6 +1013,10 @@ export class Game {
 }
 
 Game.prototype.reportSmash = function reportSmash(actor, hit) {
+  if (hit.spared) {
+    if (hit.target.companion) this.catBolts();
+    return;
+  }
   this.effect("hit", {
     x: hit.target.x,
     y: hit.target.y,

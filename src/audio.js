@@ -164,6 +164,16 @@ export function createAudio() {
       tone({ freq: 220, to: 55, type: "sawtooth", duration: 2.5, gain: 0.15, attack: 0.02 });
       tone({ freq: 110, to: 36, type: "sine", duration: 3, gain: 0.25 });
     },
+    pet: () => {
+      // A purr: a low rumble that swells and fades a few times.
+      for (let i = 0; i < 4; i++) tone({ freq: 28 + Math.random() * 4, type: "sawtooth", duration: 0.35, gain: 0.05, at: i * 0.38, attack: 0.1 });
+      tone({ freq: 880, to: 990, type: "sine", duration: 0.3, gain: 0.03 });
+    },
+    befriend: () => [523, 659, 880].forEach((f, i) => tone({ freq: f, type: "sine", duration: 0.8, gain: 0.06, at: i * 0.1, attack: 0.02 })),
+    cook: () => {
+      noise({ duration: 1.2, gain: 0.08, filter: 1200, q: 0.4, attack: 0.2 });
+      tone({ freq: 196, type: "sine", duration: 0.6, gain: 0.04, at: 0.3 });
+    },
     rest: () => {
       const notes = [659, 784, 988, 1175, 1319];
       tone({ freq: notes[Math.floor(Math.random() * notes.length)], type: "sine", duration: 1.4, gain: 0.05, attack: 0.02 });

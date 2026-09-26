@@ -18,6 +18,17 @@ like an old letter or a blue glass marble, go on the shelf, and every creature y
 entry in the field journal. At the Hearth, number keys buy things, `c` `s` `j` switch between
 camp, shelf and journal, and Enter heads back down.
 
+On depth 2 a hungry stray cat is waiting to be found. Once it's yours, it follows you everywhere,
+curls up when you rest, pricks up its ears when something unseen is close, and can't come to harm:
+if it's caught in a blow, it bolts and waits by the stairs. Press `p` to pet it (once a level, it
+mends you a little).
+
+Most creatures have a kinder answer than a fight. Walk into a rat while carrying a crust `%` and it
+becomes a friend that trots behind you. Give a goblin a coin `$` and it trades you a vial or some oil
+and leaves you alone. Bats stay asleep as long as you keep to the dark. Cook glowcaps `♠` into stew
+by a lit brazier with `c`: eat it with `e` to heal and brighten your torch, or walk into a grumpy ogre
+to share it, and it'll curl up for a nap.
+
 Somewhere around depth 10, the Sun Stone waits, guarded by something that eats light.
 
 Prefer the old, unforgiving rules? Open the page with `#night` for permadeath and darker caves.

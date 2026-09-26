@@ -21,6 +21,14 @@ export class Player extends Creature {
     this.minTorchRadius = 0;
     this.potionBonus = 0;
     this.relics = [];
+    // The satchel: gifts and cooking.
+    this.crusts = 0;
+    this.coins = 0;
+    this.mushrooms = 0;
+    this.stews = 0;
+    // Turns left of the warm glow from a bowl of stew.
+    this.stewTurns = 0;
+    this.hasCat = false;
   }
 
   hasRelic(id) {
