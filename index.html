@@ -45,7 +45,10 @@
           <div class="stat turns"><span class="label">Turn</span><span id="turn" class="value">0</span></div>
           <div class="stat best"><span class="label">Best</span><span id="best" class="value">0</span></div>
         </div>
-        <div id="relics" aria-label="Relics"></div>
+        <div class="belt">
+          <div id="relics" aria-label="Relics"></div>
+          <div id="satchel" aria-label="Satchel"></div>
+        </div>
         <p id="status" class="sr-only" aria-live="polite"></p>
 
         <div id="map-wrap">
@@ -102,6 +105,9 @@
             <button type="button" data-act="ignite"><b>^</b><span>fire</span></button>
             <button type="button" data-act="quaff"><b>!</b><span>drink</span></button>
             <button type="button" data-act="descend"><b>&gt;</b><span>descend</span></button>
+            <button type="button" data-act="pet"><b>♥</b><span>pet</span></button>
+            <button type="button" data-act="cook"><b>♠</b><span>cook</span></button>
+            <button type="button" data-act="eat"><b>◒</b><span>eat</span></button>
             <button type="button" data-act="cancel" class="act-cancel"><b>×</b><span>cancel</span></button>
           </div>
         </div>
@@ -116,12 +122,17 @@
           <span><kbd>t</kbd> douse torch</span>
           <span><kbd>f</kbd> set fire</span>
           <span><kbd>r</kbd> throw torch</span>
+          <span><kbd>p</kbd> pet the cat</span>
+          <span><kbd>c</kbd> cook</span>
+          <span><kbd>e</kbd> eat</span>
           <span class="sound"><kbd>m</kbd> <button id="mute" type="button" aria-pressed="true">sound off</button></span>
           <a id="mode-link" href="#daily">Play today's cave</a>
           <span class="aside">
             also <kbd>wasd</kbd> <kbd>hjkl</kbd> · bump a brazier <b class="g-brazier">Ω</b> to light it, then wait
             beside it to rest · light them all to warm the cave · oil <b class="g-oil">¤</b> feeds your torch ·
-            walk into foes to strike, unaware ones take triple damage ·
+            walk into a rat with a crust <b class="g-crust">%</b>, a goblin with a coin <b class="g-coin">$</b> or an ogre
+            with stew to make a friend · cook glowcaps <b class="g-cap">♠</b> by a fire · otherwise walk into foes to
+            strike, unaware ones take triple damage ·
             leap into a chasm <b class="g-chasm">:</b> to drop a level · step out of <b class="g-danger">red</b> tiles ·
             grass <b class="g-grass">"</b> burns · water <b class="g-water">~</b> slows · reach depth 10 and take the Sun Stone <b class="g-sun">☼</b>
           </span>

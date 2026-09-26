@@ -1,4 +1,4 @@
-import { brazierCount, monsterCount, oilCount, pickMonsterType, potionCount } from "./bestiary.js";
+import { brazierCount, comfortItems, monsterCount, oilCount, pickMonsterType, potionCount } from "./bestiary.js";
 import { paintTerrain, pickBiome } from "./biomes.js";
 import { FLOOR, generateCave, keepLargestRegion } from "./cavegen.js";
 import { bfsDistances } from "./pathfinding.js";
@@ -94,8 +94,10 @@ export function generateLevel({ width, height, depth = 1, rng, night = false }) 
   const count = monsterCount(depth, region.length);
   for (let i = 0; i < count && spawnable.length > 0; i++) {
     const { x, y } = takeRandom(rng, spawnable);
-    const state = rng.chance(SLEEP_CHANCE) ? "asleep" : "idle";
-    monsters.push({ x, y, type: pickMonsterType(rng, depth), state });
+    const type = pickMonsterType(rng, depth);
+    // In the cosy game bats are always found asleep, and stay that way if you keep to the dark.
+    const state = (!night && type === "bat") || rng.chance(SLEEP_CHANCE) ? "asleep" : "idle";
+    monsters.push({ x, y, type, state });
   }
 
   for (let i = 0; i < potionCount(depth) && spawnable.length > 0; i++) {
@@ -105,6 +107,11 @@ export function generateLevel({ width, height, depth = 1, rng, night = false }) 
   for (let i = oilCount(rng); i > 0 && spawnable.length > 0; i--) {
     const { x, y } = takeRandom(rng, spawnable);
     items.push({ x, y, type: "oil" });
+  }
+  for (const type of comfortItems(rng, night)) {
+    if (spawnable.length === 0) break;
+    const { x, y } = takeRandom(rng, spawnable);
+    items.push({ x, y, type });
   }
 
   const biome = final ? "caves" : pickBiome(rng, depth);

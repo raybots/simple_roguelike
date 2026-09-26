@@ -59,6 +59,7 @@ export class DomUI {
     this.turn = root.querySelector("#turn");
     this.warmthEl = root.querySelector("#warmth");
     this.relics = root.querySelector("#relics");
+    this.satchel = root.querySelector("#satchel");
     this.draft = root.querySelector("#draft");
     this.relicCount = -1;
 
@@ -149,7 +150,7 @@ export class DomUI {
   renderHearth() {
     if (!this.hearth || this.hearth.hidden) return;
     const { meta } = this;
-    const scene = hearthScene(meta.decor, { cat: !!this.game.player.hasCat });
+    const scene = hearthScene(meta.decor, { cat: meta.hasCat || !!this.game.player.hasCat });
     this.hearth.querySelector(".hearth-scene").innerHTML = scene
       .map((row) => row.map(([g, cls]) => (cls ? `<span class="h-${cls}">${g}</span>` : g)).join(""))
       .join("\n");
@@ -227,6 +228,10 @@ export class DomUI {
         changed = true;
       } else if (e.type === "keepsake") {
         if (!this.meta.keepsakes.includes(e.id)) this.meta.keepsakes.push(e.id);
+        changed = true;
+      } else if (e.type === "befriend" && e.kind === "cat") {
+        this.meta.hasCat = true;
+        if (!this.meta.journal.includes("cat")) this.meta.journal.push("cat");
         changed = true;
       } else if (e.type === "discover" && !this.meta.journal.includes(e.kind)) {
         this.meta.journal.push(e.kind);
@@ -373,6 +378,7 @@ export class DomUI {
     this.renderEffects();
     this.renderOverlay();
     this.renderRelics();
+    this.renderSatchel();
     this.renderDraft();
     this.status.textContent = renderStatus(game);
   }
@@ -451,6 +457,20 @@ export class DomUI {
         return chip;
       }),
     );
+  }
+
+  renderSatchel() {
+    const p = this.game.player;
+    const parts = [
+      [p.crusts, "%", "crust"],
+      [p.coins, "$", "coin"],
+      [p.mushrooms, "♠", "cap"],
+      [p.stews, "◒", "stew"],
+    ].filter(([n]) => n > 0);
+    const text = parts.map(([n, g, cls]) => `<span class="s-${cls}">${g}</span>${n}`).join(" ");
+    const cat = this.game.cat?.follows ? '<span class="s-cat">c</span> with you' : "";
+    const html = [text, cat].filter(Boolean).join(" · ");
+    if (this.satchel.innerHTML !== html) this.satchel.innerHTML = html;
   }
 
   renderDraft() {
@@ -567,6 +587,8 @@ export class DomUI {
         impact = true;
       } else if (e.type === "brazier") {
         this.sparks(at(e), "ember", 16);
+      } else if (e.type === "pet" || e.type === "befriend") {
+        this.floater(at(e), "♥", "heart");
       } else if (e.type === "ember") {
         this.floater(at(this.game.player), `+${e.amount} ✹`, "ember");
       } else if (e.type === "throw") {

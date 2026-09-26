@@ -38,7 +38,12 @@ const saved = options.mode === "seeded" ? null : restoreGame(loadSave(options.mo
 export const game =
   saved && saved.night === night
     ? saved
-    : new Game({ ...options, bones: options.mode === "night" ? loadBones() : null, ownedKeepsakes: meta.keepsakes });
+    : new Game({
+        ...options,
+        bones: options.mode === "night" ? loadBones() : null,
+        ownedKeepsakes: meta.keepsakes,
+        hasCat: meta.hasCat,
+      });
 game.ownedKeepsakes = meta.keepsakes;
 const ui = new DomUI(game, document.getElementById("stage"), {
   audio: createAudio(),

@@ -12,7 +12,16 @@ const GLYPHS = {
   fire: "^",
 };
 
-export const ITEM_GLYPHS = { potion: "!", oil: "¤", bones: "†", sun: "☼", keepsake: "✦" };
+export const ITEM_GLYPHS = {
+  potion: "!",
+  oil: "¤",
+  bones: "†",
+  sun: "☼",
+  keepsake: "✦",
+  crust: "%",
+  coin: "$",
+  mushroom: "♠",
+};
 export const TERRAIN_GLYPHS = { grass: '"', water: "~", fungus: "♣", ash: "," };
 
 // Top-left map coordinate of a viewport centred on the player.
@@ -58,7 +67,8 @@ export function renderViewport(
   }
   for (const m of level.monsters) {
     if (!m.alive) continue;
-    if (isVisible(m.x, m.y)) draw(m.x, m.y, { glyph: m.glyph, cls: "mon", kind: m.type, state: m.state });
+    const state = m.curled ? "asleep" : m.warning > 0 ? "hunting" : m.state;
+    if (isVisible(m.x, m.y)) draw(m.x, m.y, { glyph: m.glyph, cls: "mon", kind: m.type, state });
     else if (isSensed(m)) draw(m.x, m.y, { glyph: m.glyph, cls: "sensed", kind: m.type });
   }
   draw(player.x, player.y, { glyph: player.glyph, cls: "player" });

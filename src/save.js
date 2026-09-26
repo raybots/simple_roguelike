@@ -11,7 +11,7 @@ import { createRng } from "./rng.js";
 export const SAVE_VERSION = 1;
 
 const LEVEL_GRIDS = ["walls", "terrain", "fire", "features", "items", "explored"];
-const LEVEL_FIELDS = ["width", "height", "depth", "biome", "stairs", "torch", "warmed"];
+const LEVEL_FIELDS = ["width", "height", "depth", "biome", "stairs", "torch", "warmed", "petted"];
 const GAME_FIELDS = [
   "width",
   "height",
@@ -32,6 +32,7 @@ const GAME_FIELDS = [
   "faints",
   "deepest",
   "discovered",
+  "startsWithCat",
 ];
 
 const gridToJSON = (grid) => ({ width: grid.width, height: grid.height, cells: grid.cells });

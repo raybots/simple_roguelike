@@ -139,7 +139,9 @@ export class Level {
     const burns = [];
     for (const { x, y } of burning) {
       const creature = this.creatureAt(x, y);
-      if (creature?.alive) {
+      if (creature?.friendly) {
+        burns.push({ target: creature, damage: 0, killed: false, spared: true });
+      } else if (creature?.alive) {
         creature.hp -= FIRE_DAMAGE;
         const killed = !creature.alive;
         if (killed && !creature.isPlayer) this.removeCreature(creature);
@@ -160,6 +162,15 @@ export class Level {
       if (left === 0) this.terrain.set(x, y, "ash");
     }
     return burns;
+  }
+
+  // Two creatures trade places (Wick stepping past a friend).
+  swap(a, b) {
+    const [ax, ay, bx, by] = [a.x, a.y, b.x, b.y];
+    a.moveTo(bx, by);
+    b.moveTo(ax, ay);
+    this.creatures.set(bx, by, a);
+    this.creatures.set(ax, ay, b);
   }
 
   // Puts a creature on an empty floor tile. Returns false if the tile is taken.
@@ -222,7 +233,9 @@ export class Level {
   }
 
   // Direct damage outside a normal bump attack. Removes monsters that die.
+  // Friendly creatures are never hurt: they're `spared` instead.
   strikeCreature(attacker, target, amount) {
+    if (target.friendly) return { damage: 0, killed: false, spared: true };
     const { damage, killed } = attacker.strike(target, amount);
     if (killed && !target.isPlayer) this.removeCreature(target);
     if (killed) this.dropLoot(target);

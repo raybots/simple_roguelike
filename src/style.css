@@ -435,6 +435,24 @@ h1 span {
   50% { filter: brightness(1.45); }
 }
 
+#map .k-cat {
+  color: #f6d49a;
+  text-shadow: 0 0 8px rgba(255, 200, 120, 0.7);
+  animation: none;
+}
+#map span[data-m="♥"]::after {
+  color: #ff8cc6;
+  text-shadow: 0 0 6px #ff4fa0;
+}
+#map span[data-m="…"]::after {
+  color: #f6d49a;
+}
+#map .item.k-crust { color: #e0b070; text-shadow: 0 0 8px rgba(224, 176, 112, 0.6); }
+#map .item.k-coin { color: #ffd84a; text-shadow: 0 0 10px #ffc000; }
+#map .item.k-mushroom { color: #9dffcf; text-shadow: 0 0 10px #3dffa0; }
+#map .item.k-keepsake { color: #ffe9c0; text-shadow: 0 0 10px #ffd27a, 0 0 22px rgba(255, 190, 90, 0.6); }
+#map .floater.heart { color: #ff8cc6; text-shadow: 0 0 10px #ff4fa0, 0 1px 0 #000; }
+
 #map .corpse {
   color: #6e2a25;
   text-shadow: 0 0 6px rgba(160, 30, 30, 0.4);
@@ -722,14 +740,37 @@ h1 span {
   100% { opacity: 1; transform: none; filter: none; }
 }
 
-/* ───────────── Relics ───────────── */
+/* ───────────── Relics and satchel ───────────── */
+
+.belt {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: -4px;
+}
+.belt:has(#relics:empty):has(#satchel:empty) {
+  display: none;
+}
+
+#satchel {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+#satchel span { margin-right: 3px; }
+.s-crust, .g-crust { color: #e0b070; }
+.s-coin, .g-coin { color: #ffd84a; text-shadow: 0 0 8px rgba(255, 210, 60, 0.6); }
+.s-cap, .g-cap { color: #9dffcf; }
+.s-stew { color: #ff9a6a; }
+.s-cat { color: #f0c890; font-weight: 700; }
 
 #relics {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  min-height: 24px;
-  margin-top: -4px;
 }
 
 .relic {

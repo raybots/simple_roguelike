@@ -50,6 +50,7 @@ export function loadMeta() {
     decor: meta.decor ?? [],
     keepsakes: meta.keepsakes ?? [],
     journal: meta.journal ?? [],
+    hasCat: meta.hasCat ?? false,
   };
 }
 

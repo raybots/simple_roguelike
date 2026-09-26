@@ -25,7 +25,7 @@ export function cellClass(cell) {
 }
 
 // Small marker drawn over a monster to show what it knows: z asleep, ? alert, ! hunting.
-export const STATE_MARKERS = { asleep: "z", alert: "?", hunting: "!" };
+export const STATE_MARKERS = { asleep: "z", alert: "?", hunting: "!", friendly: "♥", shy: "…" };
 
 // Colour-codes log messages by what happened.
 export function messageTone(text) {
@@ -44,6 +44,8 @@ export function messageTone(text) {
   if (/burn|grass|alight|catches/.test(text)) return "fire";
   if (/snatches|flees|wade|water|fungus|[Cc]rystal/.test(text)) return "plain";
   if (/bones of a past/.test(text)) return "relic";
+  if (/cat|purrs|trots along|in peace|nap/.test(text)) return "relic";
+  if (/pocket|glowcap|stew/.test(text)) return "potion";
   if (/on the shelf at the Hearth|glints in the warm light/.test(text)) return "relic";
   if (/torch|oil|brazier|[Dd]arkness/.test(text)) return "fire";
   if (/descend|stairs down/.test(text)) return "depth";
