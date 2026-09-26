@@ -742,7 +742,7 @@ export class Game {
     this.state = "playing";
     this.killedBy = null;
     this.enterLevel();
-    this.log(`Wick wakes by a crackling fire, rested, still on depth ${this.depth}.`);
+    this.log(`Wick wakes at the Hearth, rested, and heads back down to depth ${this.depth}.`);
     this.effect("wake");
   }
 

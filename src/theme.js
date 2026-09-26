@@ -40,7 +40,7 @@ export function messageTone(text) {
   if (/Sun Stone/.test(text)) return "relic";
   if (/sighs|warm at last/.test(text)) return "relic";
   if (/warm your hands|rest by the fire|coax the brazier|crackles happily/.test(text)) return "fire";
-  if (/too tired|wakes by/.test(text)) return "depth";
+  if (/too tired|wakes at the Hearth/.test(text)) return "depth";
   if (/burn|grass|alight|catches/.test(text)) return "fire";
   if (/snatches|flees|wade|water|fungus|[Cc]rystal/.test(text)) return "plain";
   if (/bones of a past/.test(text)) return "relic";

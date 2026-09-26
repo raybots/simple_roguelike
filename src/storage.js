@@ -42,6 +42,21 @@ export function clearSave(mode) {
   } catch {}
 }
 
+// What carries over between runs: embers, decorations, keepsakes and journal entries.
+export function loadMeta() {
+  const meta = read("hearthlight.meta", null) ?? {};
+  return {
+    embers: meta.embers ?? 0,
+    decor: meta.decor ?? [],
+    keepsakes: meta.keepsakes ?? [],
+    journal: meta.journal ?? [],
+  };
+}
+
+export function saveMeta(meta) {
+  write("hearthlight.meta", meta);
+}
+
 export function loadBones() {
   return read("sr.bones", null);
 }

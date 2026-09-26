@@ -768,6 +768,149 @@ h1 span {
   background: radial-gradient(ellipse at center, rgba(40, 20, 8, 0.55), rgba(3, 2, 4, 0.92) 70%);
 }
 
+/* ───────────── The Hearth ───────────── */
+
+#hearth {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 38%, rgba(255, 140, 50, 0.22), transparent 70%),
+    linear-gradient(180deg, #120c0c, #0a0709);
+}
+
+#hearth[hidden] {
+  display: none;
+}
+
+.hearth-scene {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: calc(var(--cell) * 0.95);
+  line-height: 1.15;
+  color: var(--faint);
+}
+.h-rain { color: #4a6a8a; animation: rain 0.9s linear infinite; display: inline-block; }
+.h-rock { color: #3d2e28; }
+.h-flame { color: #ffd27a; text-shadow: 0 0 8px #ffae3a, 0 0 22px #ff6a10; animation: burn 0.35s steps(3) infinite alternate; display: inline-block; }
+.h-smoke { color: #6a5a52; animation: drift 3s ease-in-out infinite; display: inline-block; }
+.h-stones { color: #8a6a52; }
+.h-kettle { color: #e0a060; text-shadow: 0 0 6px rgba(255, 170, 90, 0.6); }
+.h-rug { color: #b8584a; }
+.h-books { color: #a57a4a; }
+.h-glowcap { color: #9dffcf; text-shadow: 0 0 8px #3dffa0; }
+.h-lantern { color: #ffe0a0; text-shadow: 0 0 10px #ffb040; }
+.h-chimes { color: #c8d8e8; animation: sway 2.6s ease-in-out infinite; display: inline-block; }
+.h-chair { color: #9a6a4a; }
+.h-wick { color: var(--hero); font-weight: 700; text-shadow: 0 0 10px var(--torch); }
+.h-cat { color: #f0c890; font-weight: 700; }
+
+@keyframes rain { from { transform: translateY(-4px); opacity: 0.2; } to { transform: translateY(6px); opacity: 0.8; } }
+@keyframes drift { 50% { transform: translate(2px, -3px); opacity: 0.4; } }
+@keyframes sway { 50% { transform: rotate(8deg); } }
+
+.hearth-embers {
+  margin: 0;
+  font-family: var(--serif-sc);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.hearth-embers b,
+.hearth-embers span {
+  font-family: var(--mono);
+  color: var(--torch);
+  text-shadow: 0 0 10px rgba(255, 150, 60, 0.6);
+}
+
+.hearth-tabs {
+  display: flex;
+  gap: 4px;
+}
+.hearth-tabs button {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: 999px;
+  font-family: var(--serif-sc);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.hearth-tabs button[aria-selected="true"] {
+  color: var(--text);
+  background: #2a1f1c;
+  box-shadow: inset 0 0 0 1px #4a3a30;
+}
+
+.hearth-panel {
+  width: 100%;
+  max-width: 460px;
+}
+.hearth-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.decor-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--faint);
+}
+.decor-list li:hover { background: #1c1517; }
+.decor-list kbd { grid-row: 1 / 3; }
+.decor-list .d-name { font-family: var(--serif-sc); font-size: 15px; }
+.decor-list .d-blurb { grid-column: 2; font-size: 13px; font-style: italic; }
+.decor-list .d-cost { grid-row: 1 / 3; grid-column: 3; font-family: var(--mono); font-size: 13px; }
+.decor-list li.affordable { color: var(--text); }
+.decor-list li.affordable .d-cost { color: var(--torch); }
+.decor-list li.owned { color: #cdb89a; cursor: default; }
+.decor-list li.owned .d-cost { color: #9dcf8a; font-style: italic; }
+
+.shelf-list li,
+.journal-list li {
+  padding: 4px 6px;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.35;
+  color: var(--faint);
+}
+.shelf-list li.found { color: #e2cfae; font-style: normal; }
+.journal-list li { color: #cdbca7; font-style: normal; }
+.journal-list b { font-family: var(--serif-sc); font-weight: 400; color: var(--torch); }
+
+.hearth-go {
+  margin-top: 4px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 999px;
+  font-family: var(--serif-sc);
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  color: #1a0e06;
+  background: linear-gradient(180deg, #ffcf7a, #f09a3a);
+  box-shadow: 0 0 24px rgba(255, 160, 60, 0.45);
+  cursor: pointer;
+}
+.hearth-go kbd { color: var(--text); }
+
+#map .floater.ember { color: #ffd98a; font-size: calc(var(--cell) * 0.75); text-shadow: 0 0 10px #ffae3a, 0 1px 0 #000; }
+
 #start[hidden] {
   display: none;
 }
