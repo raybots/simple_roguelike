@@ -2,7 +2,8 @@ import { DIRECTIONS } from "./game.js";
 import { actionForKey } from "./input.js";
 import { recentMessages, renderStatus, renderViewport, VIEWPORT, viewportOrigin } from "./render.js";
 import { RELICS } from "./relics.js";
-import { bestDepth, clearBones, recordDepth, saveBones } from "./storage.js";
+import { serializeGame } from "./save.js";
+import { bestDepth, clearBones, clearSave, recordDepth, saveBones, writeSave } from "./storage.js";
 import { cellClass, displayGlyph, epitaph, messageTone, STATE_MARKERS } from "./theme.js";
 
 // Visible tiles never go fully black, even outside any light.
@@ -50,6 +51,7 @@ export class DomUI {
     this.potions = root.querySelector("#potions");
     this.depth = root.querySelector("#depth");
     this.turn = root.querySelector("#turn");
+    this.warmthEl = root.querySelector("#warmth");
     this.relics = root.querySelector("#relics");
     this.draft = root.querySelector("#draft");
     this.relicCount = -1;
@@ -259,6 +261,9 @@ export class DomUI {
     this.potions.parentElement.classList.toggle("empty", player.potions === 0);
     this.depth.textContent = depth;
     this.turn.textContent = turn;
+    const { lit, total } = this.game.warmth;
+    this.warmthEl.textContent = `${lit}/${total}`;
+    this.warmthEl.parentElement.classList.toggle("warm", total > 0 && lit === total);
     this.bestEl.textContent = Math.max(this.best, depth);
   }
 
@@ -336,15 +341,21 @@ export class DomUI {
   }
 
   renderOverlay() {
-    const over = this.game.state === "dead" || this.game.state === "won";
-    const dead = this.game.state === "dead";
+    const { state } = this.game;
+    const over = state === "dead" || state === "won" || state === "resting";
+    const dead = state === "dead";
     this.root.classList.toggle("dead", dead);
-    this.overlay.classList.toggle("won", this.game.state === "won");
+    this.overlay.classList.toggle("won", state === "won");
+    this.overlay.classList.toggle("resting", state === "resting");
     if (over === !this.overlay.hidden) return;
     this.overlay.hidden = !over;
     if (!over) return;
-    this.overlay.querySelector(".rip").textContent = dead ? "✝" : "☼";
-    this.overlay.querySelector(".again").lastChild.textContent = dead ? " to rise again" : " to descend once more";
+    this.overlay.querySelector(".rip").textContent = { dead: "✝", won: "☼", resting: "☾" }[state];
+    this.overlay.querySelector(".again").lastChild.textContent = {
+      dead: " to rise again",
+      won: " to descend once more",
+      resting: " to wake",
+    }[state];
     const { title, line } = epitaph(this.game);
     this.overlay.querySelector(".epitaph-title").textContent = title;
     this.overlay.querySelector(".epitaph-line").textContent = line;
@@ -407,10 +418,15 @@ export class DomUI {
         const pos = at(e);
         const cls = e.by === "monster" || e.by === "fire" ? "hurt" : e.sneak ? "sneak" : "deal";
         this.floater(pos, e.killed && e.by !== "monster" ? `${e.amount}✝` : `${e.amount}`, cls);
-        this.sparks(pos, e.by === "fire" ? "ember" : e.by === "monster" ? "blood" : "spark", e.killed ? 12 : 7);
+        const blood = e.by === "monster" && this.game.night;
+        this.sparks(pos, e.by === "fire" || (e.by === "monster" && !blood) ? "ember" : blood ? "blood" : "spark", e.killed ? 12 : 7);
         if (e.amount >= IMPACT_DAMAGE || e.killed) impact = true;
-      } else if (e.type === "heal" && e.amount > 0) {
+      } else if ((e.type === "heal" || e.type === "rest") && e.amount > 0) {
         this.floater(at(e), `+${e.amount}`, "heal");
+        if (e.type === "rest") this.sparks(at(e), "ember", 4);
+      } else if (e.type === "warmed") {
+        replay(this.mapWrap, "sigh");
+        this.sparks(at(this.game.player), "ember", 30);
       } else if (e.type === "smash") {
         impact = true;
       } else if (e.type === "brazier") {
@@ -450,22 +466,32 @@ export class DomUI {
     }
   }
 
-  // Saves the best depth and leaves bones for a later run.
+  // Saves the best depth and, at Night, leaves bones for a later run.
   recordRun() {
     const { game } = this;
     this.newBest = recordDepth(this.mode, game.depth);
     if (this.newBest) this.best = game.depth;
-    if (this.mode === "random") {
+    if (this.mode === "night" && game.state === "dead") {
       if (game.bonesFound) clearBones();
       saveBones(game.bonesRecord());
     }
   }
 
+  // Keeps the game saved after every turn. A finished run leaves nothing to resume.
+  persist() {
+    if (this.mode === "seeded") return;
+    const { state } = this.game;
+    if (state === "dead" || state === "won") clearSave(this.mode);
+    else writeSave(this.mode, serializeGame(this.game));
+  }
+
   act(action) {
     const { game } = this;
-    const wasPlaying = game.state !== "dead" && game.state !== "won";
+    const ended = (s) => s === "dead" || s === "won" || s === "resting";
+    const wasPlaying = !ended(game.state);
     if (!game.playerAction(action)) return;
-    if (wasPlaying && (game.state === "dead" || game.state === "won")) this.recordRun();
+    if (wasPlaying && ended(game.state)) this.recordRun();
+    this.persist();
     if (action === "restart") this.newBest = false;
     this.render();
     this.spawnEffects(game.effects);

@@ -48,8 +48,8 @@ test("pressing f sets adjacent grass alight for fuel", () => {
   assert.equal(player.fuel, fuel - 5 - 1);
 });
 
-test("fire kills monsters and can kill you", () => {
-  const { game, level, player, monsters } = gameFromStrings(["@r"]);
+test("fire kills monsters and, at Night, can kill you", () => {
+  const { game, level, player, monsters } = gameFromStrings(["@r"], 1, { night: true });
   grass(level, [[1, 0], [0, 0]]);
   level.ignite(1, 0);
   level.ignite(0, 0);

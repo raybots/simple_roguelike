@@ -1,10 +1,19 @@
-# simple_roguelike
+# Hearthlight
 
-A simple roguelike with a character, enemies and a procedurally generated cave to move about.
-Graphics are ASCII characters.
+A cosy ASCII roguelike about bringing warmth back to the dark.
 
-You are Wick, a torchbearer. Find the stairs on each level and fight your way down to depth 10, where the Sun Stone waits,
-guarded by something that eats light. Take it and you win.
+You are Wick, a lamplighter. The braziers in the caves below have all gone cold, and your job is
+to light them again. Every brazier you light warms its corner of the cave for good. Wait beside
+one to rest: it mends you and refills your torch. Light every brazier on a level and the whole
+cave sighs, and everything in it settles down to sleep.
+
+Nobody dies. If Wick gets too tired, they curl up and wake rested on the same depth, with
+everything they were carrying. The game saves after every turn, so you can close the tab and pick
+up where you left off.
+
+Somewhere around depth 10, the Sun Stone waits, guarded by something that eats light.
+
+Prefer the old, unforgiving rules? Open the page with `#night` for permadeath and darker caves.
 
 Your torch is everything. It lights what you can see, it burns down as you walk, and its
 light shrinks as the fuel runs low. You can also see anything lit by a brazier or a goblin's
@@ -29,7 +38,7 @@ Play it here: https://raybots.github.io/simple_roguelike/
 | --- | --- |
 | Move | Arrow keys, `h` `j` `k` `l`, or `w` `a` `s` `d` |
 | Attack | Walk into a monster |
-| Wait a turn | `.` or Space |
+| Wait a turn, or rest by a lit brazier | `.` or Space |
 | Go down stairs | `>` |
 | Drink a potion | `q` |
 | Douse or relight your torch | `t` |

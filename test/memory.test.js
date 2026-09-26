@@ -19,7 +19,7 @@ test("actions report effects for sound and animation", () => {
 });
 
 test("taking a hit and dying are effects too", () => {
-  const { game, player, monsters } = gameFromStrings(["@g"]);
+  const { game, player, monsters } = gameFromStrings(["@g"], 1, { night: true });
   monsters[0].seenPlayer = true;
   player.hp = 2;
   game.playerAction("wait");

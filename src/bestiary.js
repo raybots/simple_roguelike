@@ -93,6 +93,8 @@ export function oilCount(rng) {
   return rng.chance(0.35) ? 2 : 1;
 }
 
-export function brazierCount(depth) {
-  return depth >= 4 ? 3 : 2;
+// Relighting braziers is the heart of the game, so there are plenty. Night keeps it sparse.
+export function brazierCount(depth, night = false) {
+  if (night) return depth >= 4 ? 3 : 2;
+  return Math.min(6, 4 + Math.floor(depth / 3));
 }

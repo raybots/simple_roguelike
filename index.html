@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="google" content="notranslate" />
     <meta name="theme-color" content="#060508" />
-    <title>Simple Roguelike</title>
+    <title>Hearthlight</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,8 +19,8 @@
     <div class="grain" aria-hidden="true"></div>
     <main id="stage">
       <header class="masthead">
-        <p class="kicker">a descent in ascii</p>
-        <h1>Simple <span>Roguelike</span></h1>
+        <p class="kicker">a lamplighter's descent</p>
+        <h1>Hearth<span>light</span></h1>
       </header>
 
       <section id="game">
@@ -37,6 +37,9 @@
               <span id="fuel-text" class="value">r8</span>
             </div>
           </div>
+          <div class="stat warmth" title="Braziers lit on this level">
+            <span class="label">Warmth</span><span id="warmth" class="value">0/0</span>
+          </div>
           <div class="stat vials"><span class="label">Vials</span><span id="potions" class="value">0</span></div>
           <div class="stat depth"><span class="label">Depth</span><span id="depth" class="value big">1</span></div>
           <div class="stat turns"><span class="label">Turn</span><span id="turn" class="value">0</span></div>
@@ -50,8 +53,8 @@
           <div class="torch" aria-hidden="true"></div>
           <div class="fx" aria-hidden="true"></div>
           <div id="start">
-            <p class="draft-kicker">torch lit, 300 turns of oil</p>
-            <h2 class="draft-title">Enter the caves</h2>
+            <p class="draft-kicker">the braziers below have gone cold</p>
+            <h2 class="draft-title">Light them again</h2>
             <p class="start-hint">Click or press any key</p>
             <p class="start-hint-touch">Tap to begin · swipe or use the pad to move</p>
           </div>
@@ -75,7 +78,7 @@
           <div class="dpad">
             <button type="button" class="up" data-act="up" aria-label="Move up">▲</button>
             <button type="button" class="left" data-act="left" aria-label="Move left">◀</button>
-            <button type="button" class="mid" data-act="wait" aria-label="Wait a turn">·</button>
+            <button type="button" class="mid" data-act="wait" aria-label="Wait or rest">·</button>
             <button type="button" class="right" data-act="right" aria-label="Move right">▶</button>
             <button type="button" class="down" data-act="down" aria-label="Move down">▼</button>
           </div>
@@ -93,7 +96,7 @@
 
         <footer id="help">
           <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> move</span>
-          <span><kbd>.</kbd> wait</span>
+          <span><kbd>.</kbd> wait or rest by a fire</span>
           <span><kbd>&gt;</kbd> descend</span>
           <span><kbd>q</kbd> drink</span>
           <span><kbd>t</kbd> douse torch</span>
@@ -102,8 +105,9 @@
           <span class="sound"><kbd>m</kbd> <button id="mute" type="button" aria-pressed="true">sound off</button></span>
           <a id="mode-link" href="#daily">Play today's cave</a>
           <span class="aside">
-            also <kbd>wasd</kbd> <kbd>hjkl</kbd> · walk into foes to strike · unaware foes take triple damage ·
-            bump a brazier <b class="g-brazier">Ω</b> to light it · oil <b class="g-oil">¤</b> feeds your torch ·
+            also <kbd>wasd</kbd> <kbd>hjkl</kbd> · bump a brazier <b class="g-brazier">Ω</b> to light it, then wait
+            beside it to rest · light them all to warm the cave · oil <b class="g-oil">¤</b> feeds your torch ·
+            walk into foes to strike, unaware ones take triple damage ·
             leap into a chasm <b class="g-chasm">:</b> to drop a level · step out of <b class="g-danger">red</b> tiles ·
             grass <b class="g-grass">"</b> burns · water <b class="g-water">~</b> slows · reach depth 10 and take the Sun Stone <b class="g-sun">☼</b>
           </span>

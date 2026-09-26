@@ -61,6 +61,8 @@ export class Monster extends Creature {
     this.windup = null;
     this.state = state;
     this.alertTurns = 0;
+    // Turns left of deep, undisturbable sleep (after a cave is warmed).
+    this.drowsy = 0;
     this.energy = 0;
   }
 
@@ -151,6 +153,10 @@ export class Monster extends Creature {
     if (this.energy < 1) return null;
     this.energy -= 1;
 
+    if (this.state === "asleep" && this.drowsy > 0) {
+      this.drowsy--;
+      return null;
+    }
     if (this.state === "asleep") {
       const close = distance(this.x, this.y, player.x, player.y) <= WAKE_RANGE;
       if (notices() && (close || rng?.chance(0.1))) this.state = "alert";
@@ -166,6 +172,8 @@ export class Monster extends Creature {
       if (notices()) {
         this.state = "alert";
         this.alertTurns = 0;
+    // Turns left of deep, undisturbable sleep (after a cave is warmed).
+    this.drowsy = 0;
         return null;
       }
       if (this.collects) {

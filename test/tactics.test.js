@@ -178,8 +178,9 @@ test("Deep Pockets, Bandolier and Lantern", () => {
   assert.equal(b.player.maxFuel, 450);
   assert.equal(b.player.fuel, 450);
 
-  const l = withRelic(["@."], "lantern");
+  const l = withRelic(["@....."], "lantern");
   l.level.features.set(1, 0, { type: "brazier", lit: false });
+  l.level.features.set(5, 0, { type: "brazier", lit: false });
   l.player.hp = 10;
   l.game.playerAction("right");
   assert.equal(l.player.hp, 15);
