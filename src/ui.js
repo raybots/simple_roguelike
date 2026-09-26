@@ -1,9 +1,12 @@
 import { DIRECTIONS } from "./game.js";
 import { actionForKey } from "./input.js";
 import { recentMessages, renderStatus, renderViewport, VIEWPORT, viewportOrigin } from "./render.js";
+import { buy, canBuy, DECOR, DECOR_IDS, hearthScene } from "./hearth.js";
+import { JOURNAL } from "./journal.js";
+import { KEEPSAKE_IDS, KEEPSAKES } from "./keepsakes.js";
 import { RELICS } from "./relics.js";
 import { serializeGame } from "./save.js";
-import { bestDepth, clearBones, clearSave, recordDepth, saveBones, writeSave } from "./storage.js";
+import { bestDepth, clearBones, clearSave, recordDepth, saveBones, saveMeta, writeSave } from "./storage.js";
 import { cellClass, displayGlyph, epitaph, messageTone, STATE_MARKERS } from "./theme.js";
 
 // Visible tiles never go fully black, even outside any light.
@@ -26,9 +29,12 @@ function replay(element, className) {
 
 // The only module that touches the DOM, apart from the entry point.
 export class DomUI {
-  constructor(game, root, { audio = null, mode = "random", daily = false } = {}) {
+  constructor(game, root, { audio = null, mode = "random", daily = false, meta = null } = {}) {
     this.game = game;
     this.root = root;
+    this.meta = meta ?? { embers: 0, decor: [], keepsakes: [], journal: [] };
+    this.hearth = root.querySelector("#hearth");
+    this.hearthTab = "camp";
     this.audio = audio;
     this.mode = mode;
     this.daily = daily;
@@ -90,6 +96,7 @@ export class DomUI {
     // The start card: a click or key press gives the page focus and lets sound play.
     this.start = this.root.querySelector("#start");
     this.start?.addEventListener("click", () => this.begin());
+    this.setupHearth();
     this.overlay.addEventListener("click", () => this.act("restart"));
     this.setupTouch();
     this.muteButton.addEventListener("click", () => {
@@ -98,6 +105,135 @@ export class DomUI {
       this.renderMute();
     });
     this.renderMute();
+  }
+
+  // The Hearth opens the game (except at Night) and greets you after every doze.
+  setupHearth() {
+    if (!this.hearth) return;
+    this.hearth.querySelector(".hearth-go").addEventListener("click", () => this.leaveHearth());
+    for (const tab of this.hearth.querySelectorAll("[data-tab]")) {
+      tab.addEventListener("click", () => {
+        this.hearthTab = tab.dataset.tab;
+        this.renderHearth();
+      });
+    }
+    if (!this.game.night) {
+      this.start.hidden = true;
+      this.openHearth();
+    }
+  }
+
+  openHearth() {
+    this.atHearth = true;
+    this.hearth.hidden = false;
+    this.renderHearth();
+  }
+
+  leaveHearth() {
+    if (!this.atHearth) return;
+    this.atHearth = false;
+    this.hearth.hidden = true;
+    this.audio?.start();
+    window.focus();
+    this.render();
+  }
+
+  buyDecor(id) {
+    if (!buy(this.meta, id)) return;
+    saveMeta(this.meta);
+    this.audio?.start();
+    this.audio?.play([{ type: "relic" }]);
+    this.renderHearth();
+  }
+
+  renderHearth() {
+    if (!this.hearth || this.hearth.hidden) return;
+    const { meta } = this;
+    const scene = hearthScene(meta.decor, { cat: !!this.game.player.hasCat });
+    this.hearth.querySelector(".hearth-scene").innerHTML = scene
+      .map((row) => row.map(([g, cls]) => (cls ? `<span class="h-${cls}">${g}</span>` : g)).join(""))
+      .join("\n");
+    this.hearth.querySelector("#embers").textContent = meta.embers;
+
+    for (const tab of this.hearth.querySelectorAll("[data-tab]")) {
+      tab.setAttribute("aria-selected", String(tab.dataset.tab === this.hearthTab));
+    }
+    for (const panel of this.hearth.querySelectorAll("[data-panel]")) panel.hidden = panel.dataset.panel !== this.hearthTab;
+
+    this.hearth.querySelector(".decor-list").replaceChildren(
+      ...DECOR_IDS.map((id, i) => {
+        const li = document.createElement("li");
+        const owned = meta.decor.includes(id);
+        li.className = owned ? "owned" : canBuy(meta, id) ? "affordable" : "";
+        li.innerHTML = `<kbd></kbd><span class="d-name"></span><span class="d-blurb"></span><span class="d-cost"></span>`;
+        li.querySelector("kbd").textContent = i + 1;
+        li.querySelector(".d-name").textContent = DECOR[id].name;
+        li.querySelector(".d-blurb").textContent = DECOR[id].blurb;
+        li.querySelector(".d-cost").textContent = owned ? "home" : `${DECOR[id].cost} ✹`;
+        li.addEventListener("click", () => this.buyDecor(id));
+        return li;
+      }),
+    );
+
+    const found = KEEPSAKE_IDS.filter((id) => meta.keepsakes.includes(id));
+    const missing = KEEPSAKE_IDS.length - found.length;
+    const shelf = found.map((id) =>
+      Object.assign(document.createElement("li"), {
+        className: "found",
+        textContent: `✦ ${KEEPSAKES[id].name}. ${KEEPSAKES[id].story}`,
+      }),
+    );
+    if (missing > 0) {
+      const text = found.length === 0 ? `✧ The shelf is bare. ${missing} keepsakes are waiting somewhere in the dark.` : `✧ ${missing} more still somewhere in the dark.`;
+      shelf.push(Object.assign(document.createElement("li"), { textContent: text }));
+    }
+    this.hearth.querySelector(".shelf-list").replaceChildren(...shelf);
+
+    const entries = meta.journal.filter((t) => JOURNAL[t]);
+    this.hearth.querySelector(".journal-list").replaceChildren(
+      ...(entries.length
+        ? entries.map((t) => {
+            const li = document.createElement("li");
+            li.innerHTML = `<b></b> <span></span>`;
+            li.querySelector("b").textContent = JOURNAL[t].title;
+            li.querySelector("span").textContent = JOURNAL[t].note;
+            return li;
+          })
+        : [Object.assign(document.createElement("li"), { textContent: "Empty pages, for now. Creatures you meet are written here." })]),
+    );
+
+    const go = this.hearth.querySelector(".hearth-go span");
+    go.textContent = this.game.depth > 1 || this.game.turn > 0 ? `Back down to depth ${this.game.depth}` : "Down into the caves";
+  }
+
+  // Keys at the Hearth: numbers buy decorations, c/s/j switch tabs, Enter heads back down.
+  hearthKey(event) {
+    if (event.key === "Enter" || event.key === " " || event.key === "Escape") return this.leaveHearth();
+    const n = Number(event.key);
+    if (n >= 1 && n <= DECOR_IDS.length) this.buyDecor(DECOR_IDS[n - 1]);
+    const tabs = { c: "camp", s: "shelf", j: "journal" };
+    if (tabs[event.key]) {
+      this.hearthTab = tabs[event.key];
+      this.renderHearth();
+    }
+  }
+
+  // Banks embers, keepsakes and journal entries as they're earned.
+  bank(effects) {
+    let changed = false;
+    for (const e of effects) {
+      if (e.type === "ember") {
+        this.meta.embers += e.amount;
+        changed = true;
+      } else if (e.type === "keepsake") {
+        if (!this.meta.keepsakes.includes(e.id)) this.meta.keepsakes.push(e.id);
+        changed = true;
+      } else if (e.type === "discover" && !this.meta.journal.includes(e.kind)) {
+        this.meta.journal.push(e.kind);
+        changed = true;
+      }
+    }
+    if (changed) saveMeta(this.meta);
   }
 
   // On-screen D-pad and action buttons, plus swiping on the map.
@@ -431,6 +567,8 @@ export class DomUI {
         impact = true;
       } else if (e.type === "brazier") {
         this.sparks(at(e), "ember", 16);
+      } else if (e.type === "ember") {
+        this.floater(at(this.game.player), `+${e.amount} ✹`, "ember");
       } else if (e.type === "throw") {
         this.flyTorch(e.path, origin, size);
         this.sparks(at(e.path.at(-1)), "ember", 10);
@@ -487,10 +625,12 @@ export class DomUI {
 
   act(action) {
     const { game } = this;
+    if (this.atHearth) return;
     const ended = (s) => s === "dead" || s === "won" || s === "resting";
     const wasPlaying = !ended(game.state);
     if (!game.playerAction(action)) return;
     if (wasPlaying && ended(game.state)) this.recordRun();
+    this.bank(game.effects);
     this.persist();
     if (action === "restart") this.newBest = false;
     this.render();
@@ -498,6 +638,8 @@ export class DomUI {
     this.audio?.setDepth(game.depth);
     this.audio?.setTorch(game.player.carryingLight ? game.torchRadius : 0);
     this.audio?.play(game.effects);
+    // Waking up, or starting over after a win, happens at the Hearth.
+    if (!game.night && game.effects.some((e) => e.type === "wake" || e.type === "restart")) this.openHearth();
   }
 
   begin() {
@@ -510,6 +652,13 @@ export class DomUI {
 
   bindKeyboard(target = window) {
     target.addEventListener("keydown", (event) => {
+      if (this.atHearth) {
+        if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          this.hearthKey(event);
+        }
+        return;
+      }
       if (this.begin()) {
         event.preventDefault();
         return;

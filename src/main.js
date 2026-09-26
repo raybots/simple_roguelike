@@ -3,7 +3,7 @@ import { dailySeed, todayKey } from "./daily.js";
 import { Game } from "./game.js";
 import { createRng } from "./rng.js";
 import { restoreGame } from "./save.js";
-import { loadBones, loadSave } from "./storage.js";
+import { loadBones, loadMeta, loadSave } from "./storage.js";
 import { DomUI } from "./ui.js";
 
 // ?seed=12345 reproduces a specific map. ?daily or #daily plays today's cave, the same
@@ -26,6 +26,9 @@ if (daily) {
 options.night = night;
 console.log(`seed: ${options.seed ?? options.rng.seed}`);
 
+// Embers, decorations, keepsakes and the journal carry over between runs.
+const meta = loadMeta();
+
 // Seeded games are for reproducing a map, so they always start fresh.
 const saved = options.mode === "seeded" ? null : restoreGame(loadSave(options.mode));
 
@@ -35,7 +38,13 @@ const saved = options.mode === "seeded" ? null : restoreGame(loadSave(options.mo
 export const game =
   saved && saved.night === night
     ? saved
-    : new Game({ ...options, bones: options.mode === "night" ? loadBones() : null });
-const ui = new DomUI(game, document.getElementById("stage"), { audio: createAudio(), mode: options.mode, daily });
+    : new Game({ ...options, bones: options.mode === "night" ? loadBones() : null, ownedKeepsakes: meta.keepsakes });
+game.ownedKeepsakes = meta.keepsakes;
+const ui = new DomUI(game, document.getElementById("stage"), {
+  audio: createAudio(),
+  mode: options.mode,
+  daily,
+  meta,
+});
 ui.bindKeyboard();
 ui.render();

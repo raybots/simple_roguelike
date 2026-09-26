@@ -101,7 +101,7 @@ test("in the cosy game you don't die: you faint, then wake rested on the same de
   assert.equal(player.potions, 2);
   assert.deepEqual(player.relics, ["whetstone"]);
   assert.equal(game.faints, 1);
-  assert.match(game.messages.at(-1), /wakes by a crackling fire/);
+  assert.match(game.messages.at(-1), /wakes at the Hearth/);
 });
 
 test("a saved game restores exactly and plays on identically", () => {

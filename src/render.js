@@ -12,7 +12,7 @@ const GLYPHS = {
   fire: "^",
 };
 
-export const ITEM_GLYPHS = { potion: "!", oil: "¤", bones: "†", sun: "☼" };
+export const ITEM_GLYPHS = { potion: "!", oil: "¤", bones: "†", sun: "☼", keepsake: "✦" };
 export const TERRAIN_GLYPHS = { grass: '"', water: "~", fungus: "♣", ash: "," };
 
 // Top-left map coordinate of a viewport centred on the player.

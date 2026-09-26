@@ -52,6 +52,20 @@
           <div id="map" role="img" aria-label="Game map"></div>
           <div class="torch" aria-hidden="true"></div>
           <div class="fx" aria-hidden="true"></div>
+          <div id="hearth" hidden>
+            <p class="draft-kicker">the Hearth</p>
+            <pre class="hearth-scene" aria-label="Wick's camp"></pre>
+            <p class="hearth-embers"><b>✹</b> <span id="embers">0</span> embers</p>
+            <div class="hearth-tabs" role="tablist">
+              <button type="button" data-tab="camp" aria-selected="true">Camp</button>
+              <button type="button" data-tab="shelf" aria-selected="false">Shelf</button>
+              <button type="button" data-tab="journal" aria-selected="false">Journal</button>
+            </div>
+            <div class="hearth-panel" data-panel="camp"><ul class="decor-list"></ul></div>
+            <div class="hearth-panel" data-panel="shelf" hidden><ul class="shelf-list"></ul></div>
+            <div class="hearth-panel" data-panel="journal" hidden><ul class="journal-list"></ul></div>
+            <button type="button" class="hearth-go"><kbd>Enter</kbd> <span>Down into the caves</span></button>
+          </div>
           <div id="start">
             <p class="draft-kicker">the braziers below have gone cold</p>
             <h2 class="draft-title">Light them again</h2>

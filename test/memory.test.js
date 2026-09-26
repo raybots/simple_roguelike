@@ -23,7 +23,7 @@ test("taking a hit and dying are effects too", () => {
   monsters[0].seenPlayer = true;
   player.hp = 2;
   game.playerAction("wait");
-  assert.deepEqual(game.effects.map((e) => e.type), ["hit", "death"]);
+  assert.deepEqual(game.effects.map((e) => e.type).filter((t) => t !== "discover"), ["hit", "death"]);
   assert.equal(game.effects[0].by, "monster");
 });
 

@@ -11,6 +11,13 @@ Nobody dies. If Wick gets too tired, they curl up and wake rested on the same de
 everything they were carrying. The game saves after every turn, so you can close the tab and pick
 up where you left off.
 
+Between trips down, you rest at the Hearth, Wick's camp at the cave mouth. Every brazier you light,
+every cave you warm and every new depth you reach earns embers, which you can spend on things that
+make camp cosier: a rug, a copper kettle, hanging lanterns, a bookshelf. Keepsakes found in the dark,
+like an old letter or a blue glass marble, go on the shelf, and every creature you meet gets an
+entry in the field journal. At the Hearth, number keys buy things, `c` `s` `j` switch between
+camp, shelf and journal, and Enter heads back down.
+
 Somewhere around depth 10, the Sun Stone waits, guarded by something that eats light.
 
 Prefer the old, unforgiving rules? Open the page with `#night` for permadeath and darker caves.
