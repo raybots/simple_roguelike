@@ -44,6 +44,7 @@ export function messageTone(text) {
   if (/burn|grass|alight|catches/.test(text)) return "fire";
   if (/snatches|flees|wade|water|fungus|[Cc]rystal/.test(text)) return "plain";
   if (/bones of a past/.test(text)) return "relic";
+  if (/on the shelf at the Hearth|glints in the warm light/.test(text)) return "relic";
   if (/torch|oil|brazier|[Dd]arkness/.test(text)) return "fire";
   if (/descend|stairs down/.test(text)) return "depth";
   return "plain";

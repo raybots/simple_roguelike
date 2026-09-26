@@ -30,6 +30,8 @@ const GAME_FIELDS = [
   "smothered",
   "waded",
   "faints",
+  "deepest",
+  "discovered",
 ];
 
 const gridToJSON = (grid) => ({ width: grid.width, height: grid.height, cells: grid.cells });

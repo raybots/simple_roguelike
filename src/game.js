@@ -3,6 +3,8 @@ import { BRAZIER_RADIUS, FIRE_RADIUS, FUNGUS_RADIUS, Level } from "./level.js";
 import { lightLevel } from "./light.js";
 import { generateLevel } from "./levelgen.js";
 import { BRAZIER_COST, OIL_FUEL, Player, POTION_HEAL, REST_FUEL, REST_HEAL } from "./player.js";
+import { EMBERS } from "./hearth.js";
+import { KEEPSAKES, pickKeepsake } from "./keepsakes.js";
 import { applyRelic, draftRelics, RELICS } from "./relics.js";
 import { createRng } from "./rng.js";
 import { computeFov } from "./visibility.js";
@@ -47,6 +49,8 @@ export const FIRESIDE_RANGE = 2;
 const COSY_BRAZIER_COST = 5;
 // After a cave sighs, its creatures sleep soundly for this long.
 const SETTLED_TURNS = 20;
+// Chance that a level has a keepsake tucked away somewhere.
+const KEEPSAKE_CHANCE = 0.6;
 
 const FUEL_WARNINGS = [
   { at: 100, text: "Your torch burns low." },
@@ -59,11 +63,13 @@ const FUEL_WARNINGS = [
 //   seed  - replay the same cave on every restart (used by the daily cave)
 //   bones - { depth, potions } left by a previous death, found on that depth
 //   night - the old, unforgiving rules: death is final and the caves are darker
+//   ownedKeepsakes - keepsakes already on the Hearth's shelf, so they aren't found twice
 export class Game {
-  constructor({ width = 60, height = 60, rng, seed, bones = null, night = false } = {}) {
+  constructor({ width = 60, height = 60, rng, seed, bones = null, night = false, ownedKeepsakes = [] } = {}) {
     this.width = width;
     this.height = height;
     this.night = night;
+    this.ownedKeepsakes = ownedKeepsakes;
     this.seed = seed;
     this.rng = rng ?? createRng(seed);
     this.bones = bones;
@@ -85,6 +91,8 @@ export class Game {
     this.draft = null;
     this.smothered = false;
     this.faints = 0;
+    this.deepest = 1;
+    this.discovered = [];
     this.enterLevel();
     this.log(
       this.night
@@ -104,6 +112,7 @@ export class Game {
     this.level = new Level(blueprint);
     this.level.placeCreature(this.player, blueprint.playerStart.x, blueprint.playerStart.y);
     this.placeBones(blueprint);
+    if (!this.night && this.rng.chance(KEEPSAKE_CHANCE)) this.placeKeepsake(8);
     if (this.player.hasRelic("cartographer")) this.revealStairs();
     this.waded = false;
     this.updateVisibility();
@@ -172,6 +181,23 @@ export class Game {
     if (spot.length === 0) return;
     const { x, y } = this.rng.pick(spot);
     level.items.set(x, y, { type: "bones", potions: bones.potions });
+  }
+
+  // Tucks an unfound keepsake onto a free floor tile at least `minDistance` from Wick.
+  placeKeepsake(minDistance, near = null) {
+    const id = pickKeepsake(this.rng, this.ownedKeepsakes);
+    if (!id) return false;
+    const { level, player } = this;
+    const spots = [];
+    level.walls.forEach((x, y, v) => {
+      if (v !== 0 || !level.isPassable(x, y) || level.itemAt(x, y) || level.isStairs(x, y)) return;
+      const d = Math.hypot(x - player.x, y - player.y);
+      if (near ? d <= near && d >= 1 : d >= minDistance) spots.push({ x, y });
+    });
+    if (spots.length === 0) return false;
+    const { x, y } = this.rng.pick(spots);
+    level.items.set(x, y, { type: "keepsake", id });
+    return true;
   }
 
   // Describes this run for leaving bones behind, or null if there's nothing to leave.
@@ -370,6 +396,11 @@ export class Game {
       this.log(`You top up your torch with oil. (+${added})`);
     } else if (item.type === "sun") {
       this.win();
+    } else if (item.type === "keepsake") {
+      const keepsake = KEEPSAKES[item.id];
+      if (!this.ownedKeepsakes.includes(item.id)) this.ownedKeepsakes.push(item.id);
+      this.log(`You find ${keepsake.name}. ${keepsake.story} It goes on the shelf at the Hearth.`);
+      this.effect("keepsake", { id: item.id });
     } else if (item.type === "bones") {
       this.bonesFound = true;
       this.player.potions += item.potions;
@@ -391,6 +422,7 @@ export class Game {
     this.player.fuel -= cost;
     this.level.lightBrazier(x, y);
     this.effect("brazier", { x, y });
+    if (!this.night) this.effect("ember", { amount: EMBERS.brazier });
     const { lit, total } = this.warmth;
     if (this.night) this.log("You light the brazier. Warm light floods the cave.");
     else if (lit < total) this.log(`You coax the brazier to life. Warmth spills across the stone. (${lit} of ${total})`);
@@ -434,6 +466,8 @@ export class Game {
     }
     this.log("The last brazier catches. The whole cave sighs, warm at last, and everything in it settles down to sleep.");
     this.effect("warmed");
+    this.effect("ember", { amount: EMBERS.warmed });
+    if (this.placeKeepsake(0, 3)) this.log("Something glints in the warm light nearby.");
   }
 
   // Wading is slow: monsters get an extra move, and the water may put your torch out.
@@ -604,6 +638,10 @@ export class Game {
 
   goDeeper() {
     this.depth++;
+    if (this.depth > this.deepest) {
+      this.deepest = this.depth;
+      if (!this.night) this.effect("ember", { amount: EMBERS.depth });
+    }
     this.enterLevel();
     this.startDraft();
   }
@@ -661,6 +699,7 @@ export class Game {
     this.slowed = false;
     this.worldActs();
     this.turn++;
+    this.noticeNewCreatures();
     if (!this.player.alive) {
       if (this.night) {
         this.state = "dead";
@@ -672,6 +711,15 @@ export class Game {
     }
     this.updateVisibility();
     return true;
+  }
+
+  // The first time you see each kind of creature, it goes in the field journal.
+  noticeNewCreatures() {
+    for (const m of this.level.monsters) {
+      if (!m.alive || this.discovered.includes(m.type) || !this.isVisible(m.x, m.y)) continue;
+      this.discovered.push(m.type);
+      this.effect("discover", { kind: m.type });
+    }
   }
 
   // In the cosy game nobody dies. Wick gets too tired, curls up, and wakes rested.
