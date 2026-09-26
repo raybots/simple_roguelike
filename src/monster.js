@@ -159,8 +159,8 @@ export class Monster extends Creature {
   takeTurn(level, player, rng, ctx = {}) {
     if (!this.alive) return null;
     if (this.state === "friendly") return this.friendlyTurn(level, player, ctx);
-    // A stray waits to be found.
-    if (this.state === "shy") return null;
+    // A stray waits to be found, and a thawing Lightless waits to be comforted.
+    if (this.state === "shy" || this.state === "thawing") return null;
     const playerLit = ctx.playerLit ?? true;
     const darkRange = ctx.darkNotice ?? DARK_NOTICE_RANGE;
     const notices = () => this.notices(level, player, playerLit, darkRange);

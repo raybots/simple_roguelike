@@ -144,8 +144,8 @@ test("the final level has the Sun Stone and its guardian instead of stairs", () 
   assert.equal(bp.features.filter((f) => f.type === "chasm").length, 0);
 });
 
-test("the Lightless smothers lights near it and snuffs braziers", () => {
-  const { game, level, player } = gameFromStrings(["@....&" + ".".repeat(10)]);
+test("at Night the Lightless smothers lights near it and snuffs braziers", () => {
+  const { game, level, player } = gameFromStrings(["@....&" + ".".repeat(10)], 1, { night: true });
   game.updateVisibility();
   assert.equal(game.torchRadius, 1);
   level.features.set(9, 0, { type: "brazier", lit: true });
@@ -166,7 +166,7 @@ test("the Sun Stone shines even inside the Lightless's reach", () => {
 });
 
 test("taking the Sun Stone wins the game; Enter starts again", () => {
-  const { game, level } = gameFromStrings(["@☼"]);
+  const { game, level } = gameFromStrings(["@☼"], 1, { night: true });
   level.items.set(1, 0, { type: "sun" });
   game.playerAction("right");
   assert.equal(game.state, "won");

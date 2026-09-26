@@ -29,9 +29,14 @@ and leaves you alone. Bats stay asleep as long as you keep to the dark. Cook glo
 by a lit brazier with `c`: eat it with `e` to heal and brighten your torch, or walk into a grumpy ogre
 to share it, and it'll curl up for a nap.
 
-Somewhere around depth 10, the Sun Stone waits, guarded by something that eats light.
+On depth 10, the Sun Stone waits, guarded by the Lightless, which drinks every light near it. It
+isn't evil, only cold. Four braziers stand around the stone, and each one you light pushes the cold
+back. Light all four and the Lightless stops fighting and leans toward the warmth. Sit with it a
+while and it becomes a friend, and the Sun Stone is yours to carry home.
 
-Prefer the old, unforgiving rules? Open the page with `#night` for permadeath and darker caves.
+Prefer the old, unforgiving rules? Choose Night mode at the Hearth (or open the page with `#night`)
+for permadeath, darker caves, no resting and no gifts, where the only way to the Sun Stone is past
+its guardian.
 
 Your torch is everything. It lights what you can see, it burns down as you walk, and its
 light shrinks as the fuel runs low. You can also see anything lit by a brazier or a goblin's

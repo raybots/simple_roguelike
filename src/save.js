@@ -33,6 +33,7 @@ const GAME_FIELDS = [
   "deepest",
   "discovered",
   "startsWithCat",
+  "comfort",
 ];
 
 const gridToJSON = (grid) => ({ width: grid.width, height: grid.height, cells: grid.cells });

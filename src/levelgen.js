@@ -90,6 +90,37 @@ export function generateLevel({ width, height, depth = 1, rng, night = false }) 
       monsters.push({ x: guard.x, y: guard.y, type: "lightless", state: "idle" });
       spawnable.splice(spawnable.indexOf(guard), 1);
     }
+    // Four cold braziers ring the Sun Stone, one in each direction. Lighting them all is
+    // how the cosy game ends: warmth, not a fight.
+    const quadrants = [
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ];
+    const ringSpot = (c, qx = 0, qy = 0) => {
+      const dx = c.x - stairs.x;
+      const dy = c.y - stairs.y;
+      const d = Math.max(Math.abs(dx), Math.abs(dy));
+      if (d < 3 || d > 10 || openNeighbours(walls, c.x, c.y) !== 9) return false;
+      // Keep ring braziers apart so none blocks another's open ground.
+      if (features.some((f) => f.ring && Math.max(Math.abs(f.x - c.x), Math.abs(f.y - c.y)) < 3)) return false;
+      return !qx || (Math.sign(dx || qx) === qx && Math.sign(dy || qy) === qy);
+    };
+    const placeRing = (spot) => {
+      features.push({ x: spot.x, y: spot.y, type: "brazier", lit: false, ring: true });
+      spawnable.splice(spawnable.indexOf(spot), 1);
+    };
+    for (const [qx, qy] of quadrants) {
+      const options = spawnable.filter((c) => ringSpot(c, qx, qy));
+      if (options.length > 0) placeRing(rng.pick(options));
+    }
+    // A cramped direction gets its brazier somewhere else around the stone.
+    while (features.filter((f) => f.ring).length < 4) {
+      const options = spawnable.filter((c) => ringSpot(c));
+      if (options.length === 0) break;
+      placeRing(rng.pick(options));
+    }
   }
   const count = monsterCount(depth, region.length);
   for (let i = 0; i < count && spawnable.length > 0; i++) {
