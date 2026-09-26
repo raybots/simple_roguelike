@@ -29,11 +29,20 @@ test("log messages get a tone", () => {
   assert.equal(messageTone("You descend to depth 3."), "depth");
 });
 
-test("the epitaph names the killer", () => {
-  const { game, player, monsters } = gameFromStrings(["@g."]);
+test("at Night the epitaph names the killer", () => {
+  const { game, player, monsters } = gameFromStrings(["@g."], 1, { night: true });
   monsters[0].seenPlayer = true;
   player.hp = 2;
   game.playerAction("wait");
   assert.equal(game.killedBy, "goblin");
   assert.deepEqual(epitaph(game), { title: "Here lies Wick", line: "Slain by a goblin on depth 1, after 1 turn." });
+});
+
+test("in the cosy game Wick dozes off instead", async () => {
+  const { gameFromStrings } = await import("./helpers/maps.js");
+  const { game, player, monsters } = gameFromStrings(["@g."]);
+  monsters[0].seenPlayer = true;
+  player.hp = 2;
+  game.playerAction("wait");
+  assert.equal(epitaph(game).title, "Wick Dozes Off");
 });

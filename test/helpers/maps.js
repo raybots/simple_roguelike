@@ -41,8 +41,8 @@ export function levelFromStrings(rows, { depth = 1 } = {}) {
 }
 
 // A Game whose current level is the given ASCII map.
-export function gameFromStrings(rows, seed = 1) {
-  const game = new Game({ rng: createRng(seed) });
+export function gameFromStrings(rows, seed = 1, { night = false } = {}) {
+  const game = new Game({ rng: createRng(seed), night });
   const { level, player, monsters, marks } = levelFromStrings(rows);
   game.level = level;
   game.player = player;

@@ -164,6 +164,17 @@ export function createAudio() {
       tone({ freq: 220, to: 55, type: "sawtooth", duration: 2.5, gain: 0.15, attack: 0.02 });
       tone({ freq: 110, to: 36, type: "sine", duration: 3, gain: 0.25 });
     },
+    rest: () => {
+      const notes = [659, 784, 988, 1175, 1319];
+      tone({ freq: notes[Math.floor(Math.random() * notes.length)], type: "sine", duration: 1.4, gain: 0.05, attack: 0.02 });
+      noise({ duration: 0.3, gain: 0.05, filter: 2200, q: 0.8 });
+    },
+    warmed: () => {
+      [262, 330, 392, 494, 523, 659].forEach((f, i) => tone({ freq: f, type: "sine", duration: 3, gain: 0.05, at: i * 0.18, attack: 0.1 }));
+      noise({ duration: 2.5, gain: 0.12, filter: 300, to: 1200, q: 0.5, attack: 0.4 });
+    },
+    faint: () => [523, 440, 392, 330, 262].forEach((f, i) => tone({ freq: f, type: "sine", duration: 1.6, gain: 0.06, at: i * 0.35, attack: 0.05 })),
+    wake: () => [392, 523, 659].forEach((f, i) => tone({ freq: f, type: "triangle", duration: 1.2, gain: 0.05, at: i * 0.15, attack: 0.05 })),
     throw: () => {
       noise({ duration: 0.45, gain: 0.25, filter: 800, to: 2600, q: 1.5, attack: 0.02 });
       tone({ freq: 300, to: 120, type: "triangle", duration: 0.4, gain: 0.06, at: 0.3 });

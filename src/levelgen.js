@@ -9,6 +9,8 @@ const MIN_STAIRS_DISTANCE = 20;
 const SAFE_RADIUS = 6;
 const SLEEP_CHANCE = 0.35;
 const LIT_BRAZIER_CHANCE = 0.25;
+// The first brazier sits close to where you arrive, so the way to warm a cave is obvious.
+const FIRST_BRAZIER_RANGE = [3, 10];
 const CHASM_MIN_DEPTH = 2;
 const CHASM_SAFE_DISTANCE = 8;
 // The last level. It holds the Sun Stone and its guardian instead of stairs.
@@ -31,7 +33,7 @@ function openNeighbours(walls, x, y) {
 
 // Builds a description of a level: walls, where the player starts, the stairs down,
 // monsters, items and braziers. Every floor tile is reachable from the start.
-export function generateLevel({ width, height, depth = 1, rng }) {
+export function generateLevel({ width, height, depth = 1, rng, night = false }) {
   let walls;
   let region = [];
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -64,9 +66,14 @@ export function generateLevel({ width, height, depth = 1, rng }) {
 
   // Braziers stand in open ground (all 8 neighbours open) so they never seal a corridor.
   const open = spawnable.filter((c) => openNeighbours(walls, c.x, c.y) === 9);
-  for (let i = 0; i < brazierCount(depth) && open.length > 0; i++) {
-    const { x, y } = takeRandom(rng, open);
-    features.push({ x, y, type: "brazier", lit: rng.chance(LIT_BRAZIER_CHANCE) });
+  const [near, farther] = FIRST_BRAZIER_RANGE;
+  const nearStart = open.filter((c) => distanceTo(c) >= near && distanceTo(c) <= farther);
+  for (let i = 0; i < brazierCount(depth, night) && open.length > 0; i++) {
+    let spotIndex = rng.int(0, open.length);
+    if (i === 0 && !night && nearStart.length > 0) spotIndex = open.indexOf(rng.pick(nearStart));
+    const [{ x, y }] = open.splice(spotIndex, 1);
+    // In the cosy game every brazier starts cold, waiting for you. Night lights a few.
+    features.push({ x, y, type: "brazier", lit: night && rng.chance(LIT_BRAZIER_CHANCE) });
     const spot = spawnable.findIndex((c) => c.x === x && c.y === y);
     if (spot >= 0) spawnable.splice(spot, 1);
   }

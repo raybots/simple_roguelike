@@ -24,7 +24,7 @@ test("each turn burns one fuel, and warnings are logged", () => {
   assert.equal(game.messages.at(-1), "Your torch burns low.");
   player.fuel = 1;
   game.playerAction("wait");
-  assert.equal(game.messages.at(-1), "Your torch dies. Darkness closes in.");
+  assert.equal(game.messages.at(-1), "Your torch sputters out. The dark settles around you.");
   assert.equal(player.torchBurning, false);
 });
 
@@ -78,12 +78,20 @@ test("light around a corner shows as glow but is not visible", () => {
 });
 
 test("bumping an unlit brazier lights it for some fuel", () => {
-  const { game, level, player } = gameFromStrings(["@.."]);
+  const { game, level, player } = gameFromStrings(["@....."]);
   addBrazier(level, 1, 0, false);
+  addBrazier(level, 5, 0, false);
   const fuel = player.fuel;
   game.playerAction("right");
   assert.equal(level.featureAt(1, 0).lit, true);
-  assert.equal(player.fuel, fuel - 10 - 1);
+  assert.equal(player.fuel, fuel - 5 - 1);
+  assert.match(game.messages.at(-1), /\(1 of 2\)/);
+
+  const night = gameFromStrings(["@.."], 1, { night: true });
+  addBrazier(night.level, 1, 0, false);
+  const nightFuel = night.player.fuel;
+  night.game.playerAction("right");
+  assert.equal(night.player.fuel, nightFuel - 10 - 1, "Night braziers cost more");
   assert.deepEqual([player.x, player.y], [0, 0], "braziers block movement");
 });
 

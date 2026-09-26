@@ -40,7 +40,7 @@ test("combat is reported in the message log", () => {
   assert.deepEqual(game.messages, ["You hit the goblin.", "The goblin hits you for 2."]);
   game.playerAction("right");
   game.playerAction("right");
-  assert.equal(game.messages.at(-1), "You kill the goblin.");
+  assert.equal(game.messages.at(-1), "The goblin falls.");
 });
 
 test("descending on stairs builds a new level and keeps hp and potions", () => {
@@ -76,18 +76,18 @@ test("potions are picked up and heal up to max hp", () => {
   assert.equal(player.hp, 30);
   assert.equal(player.potions, 1);
   assert.equal(game.turn, 3, "drinking takes a turn");
-  assert.equal(game.messages.at(-1), "You drink a potion and recover 5 HP.");
+  assert.equal(game.messages.at(-1), "You sip a vial and feel better. (+5)");
 });
 
 test("drinking with no potions costs no turn", () => {
   const { game } = gameFromStrings(["@."]);
   game.playerAction("quaff");
   assert.equal(game.turn, 0);
-  assert.equal(game.messages.at(-1), "You have no potions.");
+  assert.equal(game.messages.at(-1), "Your satchel has no vials left.");
 });
 
-test("the player can die, then only restart works", () => {
-  const { game, player, monsters } = gameFromStrings(["@g."]);
+test("at Night the player can die, then only restart works", () => {
+  const { game, player, monsters } = gameFromStrings(["@g."], 1, { night: true });
   monsters[0].seenPlayer = true;
   player.hp = 2;
   game.playerAction("wait");

@@ -170,7 +170,7 @@ h1 span {
 
 #hud {
   display: grid;
-  grid-template-columns: 1fr repeat(4, auto);
+  grid-template-columns: 1fr repeat(5, auto);
   align-items: end;
   gap: 22px;
   font-family: var(--mono);
@@ -211,6 +211,15 @@ h1 span {
 @keyframes bump {
   0% { transform: scale(1.9); color: #fff; text-shadow: 0 0 30px var(--torch); }
   100% { transform: scale(1); }
+}
+
+.warmth .value {
+  color: #ffcf6a;
+  text-shadow: 0 0 10px rgba(255, 170, 60, 0.45);
+}
+.warmth.warm .value {
+  color: #fff1c8;
+  text-shadow: 0 0 8px #ffd24a, 0 0 22px rgba(255, 170, 60, 0.9);
 }
 
 .vials .value {
@@ -679,6 +688,12 @@ h1 span {
   animation: dying 1s ease-in-out infinite;
 }
 
+/* The cave sighs: a warm wash over the whole map. */
+#map-wrap.sigh .fx::after {
+  background: radial-gradient(ellipse at center, rgba(255, 200, 110, 0.5), rgba(255, 140, 50, 0.2) 70%);
+  animation: flash 2.4s ease-out;
+}
+
 #map-wrap.descend #map {
   animation: descend 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -1044,6 +1059,21 @@ body.touch #help > span:not(.aside):not(.sound) {
 
 #overlay[hidden] {
   display: none;
+}
+
+#overlay.resting {
+  background: radial-gradient(ellipse at center, rgba(60, 36, 20, 0.7), rgba(8, 6, 14, 0.94) 70%);
+  backdrop-filter: blur(2px) sepia(0.4);
+}
+#overlay.resting .stone {
+  border-radius: 18px;
+  background: linear-gradient(180deg, #2a2020, #16111a);
+  box-shadow: inset 0 1px 0 #4a3a36, 0 0 0 1px #3a2c2a, 0 0 60px rgba(255, 150, 70, 0.25);
+}
+#overlay.resting .rip {
+  color: #f6dfa8;
+  text-shadow: 0 0 16px rgba(255, 210, 120, 0.8);
+  animation: doze 3s ease-in-out infinite;
 }
 
 #overlay.won {

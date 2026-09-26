@@ -2,7 +2,7 @@ import { BIOMES } from "./biomes.js";
 import { BRAZIER_RADIUS, FIRE_RADIUS, FUNGUS_RADIUS, Level } from "./level.js";
 import { lightLevel } from "./light.js";
 import { generateLevel } from "./levelgen.js";
-import { BRAZIER_COST, OIL_FUEL, Player, POTION_HEAL } from "./player.js";
+import { BRAZIER_COST, OIL_FUEL, Player, POTION_HEAL, REST_FUEL, REST_HEAL } from "./player.js";
 import { applyRelic, draftRelics, RELICS } from "./relics.js";
 import { createRng } from "./rng.js";
 import { computeFov } from "./visibility.js";
@@ -41,9 +41,16 @@ export const LOOSE_TORCH_RADIUS = 4;
 const NOISE_RADIUS = 6;
 const MAX_MESSAGES = 100;
 
+// Braziers this close (in any direction, diagonals included) count as "by the fire".
+export const FIRESIDE_RANGE = 2;
+// Lighting a brazier costs less in the cosy game; it all comes back when you rest.
+const COSY_BRAZIER_COST = 5;
+// After a cave sighs, its creatures sleep soundly for this long.
+const SETTLED_TURNS = 20;
+
 const FUEL_WARNINGS = [
   { at: 100, text: "Your torch burns low." },
-  { at: 40, text: "Your torch gutters. Find oil." },
+  { at: 40, text: "Your torch gutters. Find oil, or rest by a brazier." },
 ];
 
 // The turn engine. Knows nothing about the DOM.
@@ -51,10 +58,12 @@ const FUEL_WARNINGS = [
 // Options:
 //   seed  - replay the same cave on every restart (used by the daily cave)
 //   bones - { depth, potions } left by a previous death, found on that depth
+//   night - the old, unforgiving rules: death is final and the caves are darker
 export class Game {
-  constructor({ width = 60, height = 60, rng, seed, bones = null } = {}) {
+  constructor({ width = 60, height = 60, rng, seed, bones = null, night = false } = {}) {
     this.width = width;
     this.height = height;
+    this.night = night;
     this.seed = seed;
     this.rng = rng ?? createRng(seed);
     this.bones = bones;
@@ -75,12 +84,23 @@ export class Game {
     this.killedBy = null;
     this.draft = null;
     this.smothered = false;
+    this.faints = 0;
     this.enterLevel();
-    this.log("You enter the caves. Find the stairs (>) to go deeper.");
+    this.log(
+      this.night
+        ? "You enter the caves. Find the stairs (>) to go deeper."
+        : "Wick steps into the caves. The braziers down here have all gone cold. Bring them back to life.",
+    );
   }
 
   enterLevel() {
-    const blueprint = generateLevel({ width: this.width, height: this.height, depth: this.depth, rng: this.rng });
+    const blueprint = generateLevel({
+      width: this.width,
+      height: this.height,
+      depth: this.depth,
+      rng: this.rng,
+      night: this.night,
+    });
     this.level = new Level(blueprint);
     this.level.placeCreature(this.player, blueprint.playerStart.x, blueprint.playerStart.y);
     this.placeBones(blueprint);
@@ -92,6 +112,25 @@ export class Game {
     if (this.level.monsters.some((m) => m.eatsLight)) {
       this.log("The deepest dark. Somewhere ahead, the Sun Stone waits, and something guards it.");
     }
+  }
+
+  // How many of this level's braziers are burning.
+  get warmth() {
+    const braziers = this.level.braziers();
+    return { lit: braziers.filter((b) => b.lit).length, total: braziers.length };
+  }
+
+  // Whether you're close to a lit brazier.
+  get byTheFire() {
+    const { player } = this;
+    return this.level
+      .braziers()
+      .some((b) => b.lit && Math.max(Math.abs(b.x - player.x), Math.abs(b.y - player.y)) <= FIRESIDE_RANGE);
+  }
+
+  // Whether anything you can see is hunting you.
+  get hunted() {
+    return this.level.monsters.some((m) => m.alive && m.state === "hunting" && this.isVisible(m.x, m.y));
   }
 
   // The living light-eater, if there is one on this level.
@@ -246,6 +285,11 @@ export class Game {
       this.effect("restart");
       return true;
     }
+    if (this.state === "resting") {
+      if (action !== "restart") return false;
+      this.wake();
+      return true;
+    }
     if (this.state === "aiming") {
       this.state = "playing";
       if (action in DIRECTIONS) return this.throwTorch(...DIRECTIONS[action]);
@@ -259,7 +303,7 @@ export class Game {
     }
 
     if (action in DIRECTIONS) return this.move(...DIRECTIONS[action]);
-    if (action === "wait") return this.endTurn();
+    if (action === "wait") return this.rest();
     if (action === "descend") return this.descend();
     if (action === "quaff") return this.quaff();
     if (action === "torch") return this.toggleTorch();
@@ -300,7 +344,7 @@ export class Game {
     const name = target.name;
     this.effect("hit", { x: target.x, y: target.y, amount: damage, killed, sneak, by: "player" });
     if (sneak) this.log(killed ? `You strike the unaware ${name} dead!` : `You strike the unaware ${name}!`);
-    else this.log(killed ? `You kill the ${name}.` : `You hit the ${name}.`);
+    else this.log(killed ? `The ${name} falls.` : `You hit the ${name}.`);
     if (!killed) target.state = "hunting";
     if (killed && this.player.hasRelic("vampiric") && this.player.heal(1) > 0) {
       this.log("You drink its life. (+1)");
@@ -320,10 +364,10 @@ export class Game {
     this.effect("pickup", { kind: item.type });
     if (item.type === "potion") {
       this.player.potions++;
-      this.log("You pick up a potion. Press q to drink it.");
+      this.log("You tuck a vial into your satchel. Press q to drink it.");
     } else if (item.type === "oil") {
       const added = this.player.addFuel(OIL_FUEL);
-      this.log(`You refill your torch with oil (+${added}).`);
+      this.log(`You top up your torch with oil. (+${added})`);
     } else if (item.type === "sun") {
       this.win();
     } else if (item.type === "bones") {
@@ -336,17 +380,21 @@ export class Game {
   useBrazier(x, y) {
     const brazier = this.level.featureAt(x, y);
     if (brazier.lit) {
-      this.log("The brazier burns steadily.");
+      this.log(this.night ? "The brazier burns steadily." : "The brazier crackles happily. Wait here (.) to rest.");
       return true;
     }
-    if (!this.player.carryingLight || this.player.fuel < BRAZIER_COST) {
+    const cost = this.night ? BRAZIER_COST : COSY_BRAZIER_COST;
+    if (!this.player.carryingLight || this.player.fuel < cost) {
       this.log("You need a burning torch to light the brazier.");
       return true;
     }
-    this.player.fuel -= BRAZIER_COST;
+    this.player.fuel -= cost;
     this.level.lightBrazier(x, y);
-    this.log("You light the brazier. Warm light floods the cave.");
     this.effect("brazier", { x, y });
+    const { lit, total } = this.warmth;
+    if (this.night) this.log("You light the brazier. Warm light floods the cave.");
+    else if (lit < total) this.log(`You coax the brazier to life. Warmth spills across the stone. (${lit} of ${total})`);
+    if (!this.night && lit === total) this.caveSighs();
     if (this.player.hasRelic("lantern")) {
       const healed = this.player.heal(5);
       if (healed > 0) {
@@ -355,6 +403,37 @@ export class Game {
       }
     }
     return this.endTurn();
+  }
+
+  // Resting: waiting by a lit brazier with nothing hunting you mends you and refills
+  // your torch. Anywhere else, waiting just lets a turn pass.
+  rest() {
+    const { player } = this;
+    if (!this.night && this.byTheFire && !this.hunted) {
+      const healed = player.heal(REST_HEAL);
+      const fueled = player.hasTorch ? player.addFuel(REST_FUEL) : 0;
+      if (healed > 0 || fueled > 0) {
+        this.log(healed > 0 ? `You warm your hands by the fire. (+${healed})` : "You rest by the fire and trim your torch.");
+        this.effect("rest", { x: player.x, y: player.y, amount: healed });
+      }
+    }
+    return this.endTurn();
+  }
+
+  // Every brazier on the level is lit: the cave settles, and so do you.
+  caveSighs() {
+    const { level, player } = this;
+    level.warmed = true;
+    player.heal(player.maxHp);
+    if (player.hasTorch) player.addFuel(player.maxFuel);
+    for (const m of level.monsters) {
+      if (m.alive && m.state !== "friendly") {
+        m.state = "asleep";
+        m.drowsy = SETTLED_TURNS;
+      }
+    }
+    this.log("The last brazier catches. The whole cave sighs, warm at last, and everything in it settles down to sleep.");
+    this.effect("warmed");
   }
 
   // Wading is slow: monsters get an extra move, and the water may put your torch out.
@@ -550,13 +629,13 @@ export class Game {
 
   quaff() {
     if (this.player.potions === 0) {
-      this.log("You have no potions.");
+      this.log("Your satchel has no vials left.");
       return true;
     }
     this.player.potions--;
     const healed = this.player.heal(POTION_HEAL + this.player.potionBonus);
     this.effect("heal", { x: this.player.x, y: this.player.y, amount: healed });
-    this.log(`You drink a potion and recover ${healed} HP.`);
+    this.log(`You sip a vial and feel better. (+${healed})`);
     return this.endTurn();
   }
 
@@ -567,7 +646,7 @@ export class Game {
     const warning = FUEL_WARNINGS.find((w) => w.at === player.fuel);
     if (warning) this.log(warning.text);
     if (player.fuel === 0) {
-      this.log("Your torch dies. Darkness closes in.");
+      this.log("Your torch sputters out. The dark settles around you.");
       this.effect("torch", { lit: false, died: true });
     }
   }
@@ -583,12 +662,40 @@ export class Game {
     this.worldActs();
     this.turn++;
     if (!this.player.alive) {
-      this.state = "dead";
-      this.log(`You die on depth ${this.depth} after ${plural(this.turn, "turn")}.`);
-      this.effect("death");
+      if (this.night) {
+        this.state = "dead";
+        this.log(`You die on depth ${this.depth} after ${plural(this.turn, "turn")}.`);
+        this.effect("death");
+      } else {
+        this.faint();
+      }
     }
     this.updateVisibility();
     return true;
+  }
+
+  // In the cosy game nobody dies. Wick gets too tired, curls up, and wakes rested.
+  faint() {
+    this.state = "resting";
+    this.faints++;
+    this.player.hp = 0;
+    this.log("Wick is too tired to go on, and curls up to rest.");
+    this.effect("faint");
+  }
+
+  // Wakes on a fresh level at the same depth, rested, with everything you carried.
+  wake() {
+    const { player } = this;
+    this.level.removeCreature(player);
+    player.hp = player.maxHp;
+    player.fuel = player.maxFuel;
+    player.hasTorch = true;
+    player.torchLit = true;
+    this.state = "playing";
+    this.killedBy = null;
+    this.enterLevel();
+    this.log(`Wick wakes by a crackling fire, rested, still on depth ${this.depth}.`);
+    this.effect("wake");
   }
 
   // Fire burns and spreads, goblin torches catch the grass, and the Lightless snuffs braziers.

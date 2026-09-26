@@ -4,6 +4,9 @@ export const POTION_HEAL = 10;
 export const MAX_FUEL = 300;
 export const OIL_FUEL = 120;
 export const BRAZIER_COST = 10;
+// Resting by a lit brazier restores this much each turn.
+export const REST_HEAL = 2;
+export const REST_FUEL = 25;
 
 export class Player extends Creature {
   constructor({ x = 0, y = 0 } = {}) {

@@ -27,6 +27,21 @@ export function recordDepth(mode, depth) {
   return true;
 }
 
+// A game in progress, saved after every turn so closing the tab loses nothing.
+export function loadSave(mode) {
+  return read(`hearthlight.save.${mode}`, null);
+}
+
+export function writeSave(mode, data) {
+  write(`hearthlight.save.${mode}`, data);
+}
+
+export function clearSave(mode) {
+  try {
+    localStorage.removeItem(`hearthlight.save.${mode}`);
+  } catch {}
+}
+
 export function loadBones() {
   return read("sr.bones", null);
 }

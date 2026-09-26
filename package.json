@@ -1,5 +1,5 @@
 {
-  "name": "simple_roguelike",
+  "name": "hearthlight",
   "private": true,
   "type": "module",
   "description": "A simple ASCII roguelike that runs in the browser.",
